@@ -43,7 +43,6 @@ struct NautilusWindowDetails
         
         GtkUIManager *ui_manager;
         GtkActionGroup *main_action_group; /* owned by ui_manager */
-        guint help_message_cid;
 
         /* Menus. */
         guint extensions_menu_merge_id;
@@ -86,9 +85,6 @@ struct NautilusWindowDetails
         /* Toolbar */
         GtkWidget *toolbar;
 
-        guint extensions_toolbar_merge_id;
-        GtkActionGroup *extensions_toolbar_action_group;
-
         /* focus widget before the location bar has been shown temporarily */
         GtkWidget *last_focus_widget;
         	
@@ -117,15 +113,6 @@ typedef void (*NautilusBookmarkFailedCallback) (NautilusWindow *window,
 void               nautilus_window_load_view_as_menus                    (NautilusWindow    *window);
 void               nautilus_window_load_extension_menus                  (NautilusWindow    *window);
 NautilusWindowPane *nautilus_window_get_next_pane                        (NautilusWindow *window);
-void               nautilus_menus_append_bookmark_to_menu                (NautilusWindow    *window, 
-                                                                          NautilusBookmark  *bookmark, 
-                                                                          const char        *parent_path,
-                                                                          const char        *parent_id,
-                                                                          guint              index_in_parent,
-                                                                          GtkActionGroup    *action_group,
-                                                                          guint              merge_id,
-                                                                          GCallback          refresh_callback,
-                                                                          NautilusBookmarkFailedCallback failed_callback);
 
 NautilusWindowSlot *nautilus_window_get_slot_for_view                    (NautilusWindow *window,
 									  NautilusView   *view);
