@@ -1162,11 +1162,11 @@ nautilus_window_view_visible (NautilusWindow *window,
 
 	slot = nautilus_window_get_slot_for_view (window, view);
 
-	if (gtk_widget_get_visible (GTK_WIDGET (slot))) {
+	if (slot->visible) {
 		return;
 	}
 
-	gtk_widget_show (GTK_WIDGET (slot));
+	slot->visible = TRUE;
 	pane = slot->pane;
 
 	if (gtk_widget_get_visible (GTK_WIDGET (pane))) {
@@ -1177,7 +1177,7 @@ nautilus_window_view_visible (NautilusWindow *window,
 	for (l = pane->slots; l != NULL; l = l->next) {
 		slot = l->data;
 
-		if (!gtk_widget_get_visible (GTK_WIDGET (slot))) {
+		if (!slot->visible) {
 			return;
 		}
 	}
