@@ -132,6 +132,7 @@ void                 nautilus_window_report_load_underway  (NautilusWindow *wind
 void                 nautilus_window_view_visible          (NautilusWindow *window,
                                                             NautilusView *view);
 NautilusWindowSlot * nautilus_window_get_active_slot       (NautilusWindow *window);
+GList *              nautilus_window_get_slots             (NautilusWindow *window);
 
 GtkWidget *          nautilus_window_ensure_location_bar   (NautilusWindow *window);
 void                 nautilus_window_sync_location_widgets (NautilusWindow *window);

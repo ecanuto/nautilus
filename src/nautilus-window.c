@@ -105,6 +105,8 @@ enum {
 	PROMPT_FOR_LOCATION,
 	LOADING_URI,
 	HIDDEN_FILES_MODE_CHANGED,
+	SLOT_ADDED,
+	SLOT_REMOVED,
 	LAST_SIGNAL
 };
 
@@ -2053,6 +2055,14 @@ nautilus_window_get_active_slot (NautilusWindow *window)
 	return window->details->active_pane->active_slot;
 }
 
+GList *
+nautilus_window_get_slots (NautilusWindow *window)
+{
+	g_assert (NAUTILUS_IS_WINDOW (window));
+
+	return window->details->active_pane->slots;
+}
+
 NautilusWindowSlot *
 nautilus_window_get_extra_slot (NautilusWindow *window)
 {
@@ -2335,6 +2345,22 @@ nautilus_window_class_init (NautilusWindowClass *class)
 			      g_cclosure_marshal_VOID__STRING,
 			      G_TYPE_NONE, 1,
 			      G_TYPE_STRING);
+	signals[SLOT_ADDED] =
+		g_signal_new ("slot-added",
+			      G_TYPE_FROM_CLASS (class),
+			      G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+			      0,
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__OBJECT,
+			      G_TYPE_NONE, 1, NAUTILUS_TYPE_WINDOW_SLOT);
+	signals[SLOT_REMOVED] =
+		g_signal_new ("slot-removed",
+			      G_TYPE_FROM_CLASS (class),
+			      G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+			      0,
+			      NULL, NULL,
+			      g_cclosure_marshal_VOID__OBJECT,
+			      G_TYPE_NONE, 1, NAUTILUS_TYPE_WINDOW_SLOT);
 
 	binding_set = gtk_binding_set_by_class (class);
 	gtk_binding_entry_add_signal (binding_set, GDK_KEY_BackSpace, 0,
