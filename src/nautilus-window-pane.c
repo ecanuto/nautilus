@@ -507,6 +507,7 @@ nautilus_window_pane_close_slot (NautilusWindowPane *pane,
 	notebook = GTK_NOTEBOOK (pane->notebook);
 
 	nautilus_window_manage_views_close_slot (slot);
+	pane->slots = g_list_remove (pane->slots, slot);
 
 	page_num = gtk_notebook_page_num (notebook, GTK_WIDGET (slot));
 	g_assert (page_num >= 0);
@@ -522,7 +523,6 @@ nautilus_window_pane_close_slot (NautilusWindowPane *pane,
 
 	gtk_notebook_set_show_tabs (notebook,
 				    gtk_notebook_get_n_pages (notebook) > 1);
-	pane->slots = g_list_remove (pane->slots, slot);
 }
 
 NautilusWindowSlot *
