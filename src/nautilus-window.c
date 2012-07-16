@@ -42,7 +42,6 @@
 #include "nautilus-tree-sidebar.h"
 #include "nautilus-view-factory.h"
 #include "nautilus-window-manage-views.h"
-#include "nautilus-window-bookmarks.h"
 #include "nautilus-window-slot.h"
 
 #include <eel/eel-debug.h>
@@ -883,7 +882,6 @@ nautilus_window_constructed (GObject *self)
 
 	side_pane_id_changed (window);
 
-	nautilus_window_initialize_bookmarks_menu (window);
 	nautilus_window_set_initial_window_geometry (window);
 
 	slot = nautilus_window_pane_open_slot (window->details->active_pane, 0);
@@ -986,7 +984,6 @@ nautilus_window_finalize (GObject *object)
 					      side_pane_id_changed, window);
 
 	g_clear_object (&window->details->nav_state);
-	g_clear_object (&window->details->bookmark_list);
 	g_clear_object (&window->details->ui_manager);
 
 	g_free (window->details->sidebar_id);
