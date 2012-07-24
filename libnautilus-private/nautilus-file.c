@@ -120,8 +120,13 @@ static GQuark attribute_name_q,
 	attribute_type_q,
 	attribute_modification_date_q,
 	attribute_date_modified_q,
+	attribute_date_modified_full_q,
 	attribute_accessed_date_q,
 	attribute_date_accessed_q,
+	attribute_date_accessed_full_q,
+	attribute_used_date_q,
+	attribute_date_used_q,
+	attribute_date_used_full_q,
 	attribute_mime_type_q,
 	attribute_size_detail_q,
 	attribute_deep_size_q,
@@ -129,9 +134,12 @@ static GQuark attribute_name_q,
 	attribute_deep_directory_count_q,
 	attribute_deep_total_count_q,
 	attribute_date_changed_q,
+	attribute_date_changed_full_q,
 	attribute_trashed_on_q,
+	attribute_trashed_on_full_q,
 	attribute_trash_orig_path_q,
 	attribute_date_permissions_q,
+	attribute_date_permissions_full_q,
 	attribute_permissions_q,
 	attribute_selinux_context_q,
 	attribute_octal_permissions_q,
@@ -2715,6 +2723,9 @@ get_time (NautilusFile *file,
 	case NAUTILUS_DATE_TYPE_ACCESSED:
 		time = file->details->atime;
 		break;
+	case NAUTILUS_DATE_TYPE_USED:
+		time = MAX (file->details->atime, file->details->mtime);
+		break;
 	case NAUTILUS_DATE_TYPE_TRASHED:
 		time = file->details->trash_time;
 		break;
@@ -3142,6 +3153,12 @@ nautilus_file_compare_for_sort (NautilusFile *file_1,
 				result = compare_by_full_path (file_1, file_2);
 			}
 			break;
+		case NAUTILUS_FILE_SORT_BY_USED_TIME:
+			result = compare_by_time (file_1, file_2, NAUTILUS_DATE_TYPE_USED);
+			if (result == 0) {
+				result = compare_by_full_path (file_1, file_2);
+			}
+			break;
 		case NAUTILUS_FILE_SORT_BY_TRASHED_TIME:
 			result = compare_by_time (file_1, file_2, NAUTILUS_DATE_TYPE_TRASHED);
 			if (result == 0) {
@@ -3191,17 +3208,22 @@ nautilus_file_compare_for_sort_by_attribute_q   (NautilusFile                   
 						       NAUTILUS_FILE_SORT_BY_TYPE,
 						       directories_first,
 						       reversed);
-	} else if (attribute == attribute_modification_date_q || attribute == attribute_date_modified_q) {
+	} else if (attribute == attribute_modification_date_q || attribute == attribute_date_modified_q || attribute == attribute_date_modified_full_q) {
 		return nautilus_file_compare_for_sort (file_1, file_2,
 						       NAUTILUS_FILE_SORT_BY_MTIME,
 						       directories_first,
 						       reversed);
-        } else if (attribute == attribute_accessed_date_q || attribute == attribute_date_accessed_q) {
+        } else if (attribute == attribute_accessed_date_q || attribute == attribute_date_accessed_q || attribute == attribute_date_accessed_full_q) {
 		return nautilus_file_compare_for_sort (file_1, file_2,
 						       NAUTILUS_FILE_SORT_BY_ATIME,
 						       directories_first,
 						       reversed);
-        } else if (attribute == attribute_trashed_on_q) {
+        } else if (attribute == attribute_used_date_q || attribute == attribute_date_used_q || attribute == attribute_date_used_full_q) {
+		return nautilus_file_compare_for_sort (file_1, file_2,
+						       NAUTILUS_FILE_SORT_BY_ATIME,
+						       directories_first,
+						       reversed);
+        } else if (attribute == attribute_trashed_on_q || attribute == attribute_trashed_on_full_q) {
 		return nautilus_file_compare_for_sort (file_1, file_2,
 						       NAUTILUS_FILE_SORT_BY_TRASHED_TIME,
 						       directories_first,
@@ -4293,6 +4315,7 @@ nautilus_file_get_date (NautilusFile *file,
 	g_return_val_if_fail (date_type == NAUTILUS_DATE_TYPE_CHANGED
 			      || date_type == NAUTILUS_DATE_TYPE_ACCESSED
 			      || date_type == NAUTILUS_DATE_TYPE_MODIFIED
+			      || date_type == NAUTILUS_DATE_TYPE_USED
 			      || date_type == NAUTILUS_DATE_TYPE_TRASHED
 			      || date_type == NAUTILUS_DATE_TYPE_PERMISSIONS_CHANGED, FALSE);
 
@@ -4553,6 +4576,24 @@ nautilus_file_get_trash_original_file_parent_as_string (NautilusFile *file)
 	return NULL;
 }
 
+/*
+ * Note to localizers: You can look at man strftime
+ * for details on the format, but you should only use
+ * the specifiers from the C standard, not extensions.
+ * These include "%" followed by one of
+ * "aAbBcdHIjmMpSUwWxXyYZ". There are two extensions
+ * in the Nautilus version of strftime that can be
+ * used (and match GNU extensions). Putting a "-"
+ * between the "%" and any numeric directive will turn
+ * off zero padding, and putting a "_" there will use
+ * space padding instead of zero padding.
+ */
+#define TODAY_TIME_FORMAT N_("%-I:%M %P")
+#define THIS_MONTH_TIME_FORMAT N_("%b %-e")
+#define THIS_YEAR_TIME_FORMAT N_("%b %-e")
+#define ANYTIME_TIME_FORMAT N_("%b %-d %Y")
+#define FULL_FORMAT N_("%a, %b %e %Y %H:%M:%S %p")
+
 /**
  * nautilus_file_get_date_as_string:
  * 
@@ -4564,7 +4605,7 @@ nautilus_file_get_trash_original_file_parent_as_string (NautilusFile *file)
  * 
  **/
 static char *
-nautilus_file_get_date_as_string (NautilusFile *file, NautilusDateType date_type)
+nautilus_file_get_date_as_string (NautilusFile *file, NautilusDateType date_type, gboolean compact)
 {
 	return nautilus_file_fit_date_as_string (file, date_type,
 		0, NULL, NULL, NULL);
@@ -6007,9 +6048,10 @@ nautilus_file_get_deep_directory_count_as_string (NautilusFile *file)
  * @file: NautilusFile representing the file in question.
  * @attribute_name: The name of the desired attribute. The currently supported
  * set includes "name", "type", "mime_type", "size", "deep_size", "deep_directory_count",
- * "deep_file_count", "deep_total_count", "date_modified", "date_changed", "date_accessed", 
- * "date_permissions", "owner", "group", "permissions", "octal_permissions", "uri", "where",
- * "link_target", "volume", "free_space", "selinux_context", "trashed_on", "trashed_orig_path"
+ * "deep_file_count", "deep_total_count", "date_modified", "date_changed", "date_accessed", "date_used",
+ * "date_permissions", "date_modified_full", "date_changed_full", "date_accessed_full", "date_used_full",
+ * "date_permissions_full", "owner", "group", "permissions", "octal_permissions", "uri", "where",
+ * "link_target", "volume", "free_space", "selinux_context", "trashed_on", "trashed_on_full", "trashed_orig_path"
  * 
  * Returns: Newly allocated string ready to display to the user, or NULL
  * if the value is unknown or @attribute_name is not supported.
@@ -6052,23 +6094,63 @@ nautilus_file_get_string_attribute_q (NautilusFile *file, GQuark attribute_q)
 	}
 	if (attribute_q == attribute_date_modified_q) {
 		return nautilus_file_get_date_as_string (file, 
-							 NAUTILUS_DATE_TYPE_MODIFIED);
+							 NAUTILUS_DATE_TYPE_MODIFIED,
+							 TRUE);
+	}
+	if (attribute_q == attribute_date_modified_full_q) {
+		return nautilus_file_get_date_as_string (file, 
+							 NAUTILUS_DATE_TYPE_MODIFIED,
+							 FALSE);
 	}
 	if (attribute_q == attribute_date_changed_q) {
 		return nautilus_file_get_date_as_string (file, 
-							 NAUTILUS_DATE_TYPE_CHANGED);
+							 NAUTILUS_DATE_TYPE_CHANGED,
+							 TRUE);
+	}
+	if (attribute_q == attribute_date_changed_full_q) {
+		return nautilus_file_get_date_as_string (file, 
+							 NAUTILUS_DATE_TYPE_CHANGED,
+							 FALSE);
 	}
 	if (attribute_q == attribute_date_accessed_q) {
 		return nautilus_file_get_date_as_string (file,
-							 NAUTILUS_DATE_TYPE_ACCESSED);
+							 NAUTILUS_DATE_TYPE_ACCESSED,
+							 TRUE);
+	}
+	if (attribute_q == attribute_date_accessed_full_q) {
+		return nautilus_file_get_date_as_string (file,
+							 NAUTILUS_DATE_TYPE_ACCESSED,
+							 FALSE);
+	}
+	if (attribute_q == attribute_date_used_q) {
+		return nautilus_file_get_date_as_string (file,
+							 NAUTILUS_DATE_TYPE_USED,
+							 TRUE);
+	}
+	if (attribute_q == attribute_date_used_full_q) {
+		return nautilus_file_get_date_as_string (file,
+							 NAUTILUS_DATE_TYPE_USED,
+							 FALSE);
 	}
 	if (attribute_q == attribute_trashed_on_q) {
 		return nautilus_file_get_date_as_string (file,
-							 NAUTILUS_DATE_TYPE_TRASHED);
+							 NAUTILUS_DATE_TYPE_TRASHED,
+							 TRUE);
+	}
+	if (attribute_q == attribute_trashed_on_full_q) {
+		return nautilus_file_get_date_as_string (file,
+							 NAUTILUS_DATE_TYPE_TRASHED,
+							 FALSE);
 	}
 	if (attribute_q == attribute_date_permissions_q) {
 		return nautilus_file_get_date_as_string (file,
-							 NAUTILUS_DATE_TYPE_PERMISSIONS_CHANGED);
+							 NAUTILUS_DATE_TYPE_PERMISSIONS_CHANGED,
+							 TRUE);
+	}
+	if (attribute_q == attribute_date_permissions_full_q) {
+		return nautilus_file_get_date_as_string (file,
+							 NAUTILUS_DATE_TYPE_PERMISSIONS_CHANGED,
+							 FALSE);
 	}
 	if (attribute_q == attribute_permissions_q) {
 		return nautilus_file_get_permissions_as_string (file);
@@ -6217,11 +6299,16 @@ nautilus_file_is_date_sort_attribute_q (GQuark attribute_q)
 {
 	if (attribute_q == attribute_modification_date_q ||
 	    attribute_q == attribute_date_modified_q ||
+	    attribute_q == attribute_date_modified_full_q ||
 	    attribute_q == attribute_accessed_date_q ||
 	    attribute_q == attribute_date_accessed_q ||
+	    attribute_q == attribute_date_accessed_full_q ||
 	    attribute_q == attribute_date_changed_q ||
+	    attribute_q == attribute_date_changed_full_q ||
 	    attribute_q == attribute_trashed_on_q ||
-	    attribute_q == attribute_date_permissions_q) {
+	    attribute_q == attribute_trashed_on_full_q ||
+	    attribute_q == attribute_date_permissions_q ||
+	    attribute_q == attribute_date_permissions_full_q) {
 		return TRUE;
 	}
 
@@ -8011,8 +8098,13 @@ nautilus_file_class_init (NautilusFileClass *class)
 	attribute_type_q = g_quark_from_static_string ("type");
 	attribute_modification_date_q = g_quark_from_static_string ("modification_date");
 	attribute_date_modified_q = g_quark_from_static_string ("date_modified");
+	attribute_date_modified_full_q = g_quark_from_static_string ("date_modified_full");
 	attribute_accessed_date_q = g_quark_from_static_string ("accessed_date");
 	attribute_date_accessed_q = g_quark_from_static_string ("date_accessed");
+	attribute_date_accessed_full_q = g_quark_from_static_string ("date_accessed_full");
+	attribute_used_date_q = g_quark_from_static_string ("used_date");
+	attribute_date_used_q = g_quark_from_static_string ("date_used");
+	attribute_date_used_full_q = g_quark_from_static_string ("date_used_full");
 	attribute_mime_type_q = g_quark_from_static_string ("mime_type");
 	attribute_size_detail_q = g_quark_from_static_string ("size_detail");
 	attribute_deep_size_q = g_quark_from_static_string ("deep_size");
@@ -8020,9 +8112,12 @@ nautilus_file_class_init (NautilusFileClass *class)
 	attribute_deep_directory_count_q = g_quark_from_static_string ("deep_directory_count");
 	attribute_deep_total_count_q = g_quark_from_static_string ("deep_total_count");
 	attribute_date_changed_q = g_quark_from_static_string ("date_changed");
+	attribute_date_changed_full_q = g_quark_from_static_string ("date_changed_full");
 	attribute_trashed_on_q = g_quark_from_static_string ("trashed_on");
+	attribute_trashed_on_full_q = g_quark_from_static_string ("trashed_on_full");
 	attribute_trash_orig_path_q = g_quark_from_static_string ("trash_orig_path");
 	attribute_date_permissions_q = g_quark_from_static_string ("date_permissions");
+	attribute_date_permissions_full_q = g_quark_from_static_string ("date_permissions_full");
 	attribute_permissions_q = g_quark_from_static_string ("permissions");
 	attribute_selinux_context_q = g_quark_from_static_string ("selinux_context");
 	attribute_octal_permissions_q = g_quark_from_static_string ("octal_permissions");
