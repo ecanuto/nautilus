@@ -74,6 +74,7 @@ struct NautilusQueryEditorDetails {
 
 	GList *rows;
 	char *last_set_query_text;
+	gboolean got_preedit;
 };
 
 enum {
@@ -112,6 +113,134 @@ static NautilusQueryEditorRowOps row_type[] = {
 
 G_DEFINE_TYPE (NautilusQueryEditor, nautilus_query_editor, GTK_TYPE_BOX);
 
+/* taken from gtk/gtktreeview.c */
+static void
+send_focus_change (GtkWidget *widget,
+                   GdkDevice *device,
+		   gboolean   in)
+{
+	GdkDeviceManager *device_manager;
+	GList *devices, *d;
+
+	device_manager = gdk_display_get_device_manager (gtk_widget_get_display (widget));
+	devices = gdk_device_manager_list_devices (device_manager, GDK_DEVICE_TYPE_MASTER);
+	devices = g_list_concat (devices, gdk_device_manager_list_devices (device_manager, GDK_DEVICE_TYPE_SLAVE));
+	devices = g_list_concat (devices, gdk_device_manager_list_devices (device_manager, GDK_DEVICE_TYPE_FLOATING));
+
+	for (d = devices; d; d = d->next) {
+		GdkDevice *dev = d->data;
+		GdkEvent *fevent;
+		GdkWindow *window;
+
+		if (gdk_device_get_source (dev) != GDK_SOURCE_KEYBOARD)
+			continue;
+
+		window = gtk_widget_get_window (widget);
+
+		/* Skip non-master keyboards that haven't
+		 * selected for events from this window
+		 */
+		if (gdk_device_get_device_type (dev) != GDK_DEVICE_TYPE_MASTER &&
+		    !gdk_window_get_device_events (window, dev))
+			continue;
+
+		fevent = gdk_event_new (GDK_FOCUS_CHANGE);
+
+		fevent->focus_change.type = GDK_FOCUS_CHANGE;
+		fevent->focus_change.window = g_object_ref (window);
+		fevent->focus_change.in = in;
+		gdk_event_set_device (fevent, device);
+
+		gtk_widget_send_focus_change (widget, fevent);
+
+		gdk_event_free (fevent);
+	}
+
+	g_list_free (devices);
+}
+
+static void
+entry_focus_hack (GtkWidget *entry,
+		  GdkDevice *device)
+{
+	GtkEntryClass *entry_class;
+	GtkWidgetClass *entry_parent_class;
+
+	/* Grab focus will select all the text.  We don't want that to happen, so we
+	 * call the parent instance and bypass the selection change.  This is probably
+	 * really non-kosher. */
+	entry_class = g_type_class_peek (GTK_TYPE_ENTRY);
+	entry_parent_class = g_type_class_peek_parent (entry_class);
+	(entry_parent_class->grab_focus) (entry);
+
+	/* send focus-in event */
+	send_focus_change (entry, device, TRUE);
+}
+
+static void
+entry_preedit_changed_cb (GtkEntry            *entry,
+			  gchar               *preedit,
+			  NautilusQueryEditor *editor)
+{
+	editor->details->got_preedit = TRUE;
+}
+
+gboolean
+nautilus_query_editor_handle_event (NautilusQueryEditor *editor,
+				    GdkEventKey         *event)
+{
+	GdkEvent *new_event;
+	gboolean handled = FALSE;
+	gulong id;
+	gboolean retval;
+	gboolean text_changed;
+	char *old_text;
+	const char *new_text;
+
+	/* if we're focused already, no need to handle the event manually */
+	if (gtk_widget_has_focus (editor->details->entry)) {
+		return FALSE;
+	}
+
+	/* never handle these events */
+	if (event->keyval == GDK_KEY_slash || event->keyval == GDK_KEY_Delete) {
+		return FALSE;
+	}
+
+	/* don't activate search for these events */
+	if (!gtk_widget_get_visible (GTK_WIDGET (editor)) && event->keyval == GDK_KEY_space) {
+		return FALSE;
+	}
+
+	editor->details->got_preedit = FALSE;
+	if (!gtk_widget_get_realized (editor->details->entry)) {
+		gtk_widget_realize (editor->details->entry);
+	}
+
+	old_text = g_strdup (gtk_entry_get_text (GTK_ENTRY (editor->details->entry)));
+
+	id = g_signal_connect (editor->details->entry, "preedit-changed",
+			       G_CALLBACK (entry_preedit_changed_cb), editor);
+
+	new_event = gdk_event_copy ((GdkEvent *) event);
+	g_object_unref (((GdkEventKey *) new_event)->window);
+	((GdkEventKey *) new_event)->window = g_object_ref
+		(gtk_widget_get_window (editor->details->entry));
+	retval = gtk_widget_event (editor->details->entry, new_event);
+	gdk_event_free (new_event);
+
+	g_signal_handler_disconnect (editor->details->entry, id);
+
+	new_text = gtk_entry_get_text (GTK_ENTRY (editor->details->entry));
+	text_changed = strcmp (old_text, new_text) != 0;
+	g_free (old_text);
+
+	handled = (editor->details->got_preedit) || (retval && text_changed);
+	editor->details->got_preedit = FALSE;
+
+	return handled;
+}
+
 static void
 nautilus_query_editor_dispose (GObject *object)
 {
@@ -127,25 +256,14 @@ nautilus_query_editor_dispose (GObject *object)
 	G_OBJECT_CLASS (nautilus_query_editor_parent_class)->dispose (object);
 }
 
-static gboolean
-nautilus_query_editor_draw (GtkWidget *widget,
-			    cairo_t *cr)
+static void
+nautilus_query_editor_grab_focus (GtkWidget *widget)
 {
-	GtkStyleContext *context;
+	NautilusQueryEditor *editor = NAUTILUS_QUERY_EDITOR (widget);
 
-	context = gtk_widget_get_style_context (widget);
-
-	gtk_render_background (context, cr, 0, 0,
-			       gtk_widget_get_allocated_width (widget),
-			       gtk_widget_get_allocated_height (widget));
-
-	gtk_render_frame (context, cr, 0, 0,
-			  gtk_widget_get_allocated_width (widget),
-			  gtk_widget_get_allocated_height (widget));
-
-	GTK_WIDGET_CLASS (nautilus_query_editor_parent_class)->draw (widget, cr);
-
-	return FALSE;
+	if (gtk_widget_get_visible (widget)) {
+		entry_focus_hack (editor->details->entry, gtk_get_current_event_device ());
+	}
 }
 
 static void
@@ -159,7 +277,7 @@ nautilus_query_editor_class_init (NautilusQueryEditorClass *class)
         gobject_class->dispose = nautilus_query_editor_dispose;
 
 	widget_class = GTK_WIDGET_CLASS (class);
-	widget_class->draw = nautilus_query_editor_draw;
+	widget_class->grab_focus = nautilus_query_editor_grab_focus;
 
 	signals[CHANGED] =
 		g_signal_new ("changed",
@@ -802,6 +920,9 @@ nautilus_query_editor_add_row (NautilusQueryEditor *editor,
 	row->type = type;
 	
 	hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_container_set_border_width (GTK_CONTAINER (hbox), 6);
+	gtk_style_context_add_class (gtk_widget_get_style_context (hbox),
+				     GTK_STYLE_CLASS_TOOLBAR);
 	row->hbox = hbox;
 	gtk_widget_show (hbox);
 	gtk_box_pack_start (GTK_BOX (editor->details->vbox), hbox, FALSE, FALSE, 0);
@@ -855,26 +976,13 @@ nautilus_query_editor_init (NautilusQueryEditor *editor)
 {
 	editor->details = G_TYPE_INSTANCE_GET_PRIVATE (editor, NAUTILUS_TYPE_QUERY_EDITOR,
 						       NautilusQueryEditorDetails);
-	editor->details->is_visible = FALSE;
-
-	gtk_style_context_add_class (gtk_widget_get_style_context (GTK_WIDGET (editor)),
-				     GTK_STYLE_CLASS_TOOLBAR);
-	gtk_style_context_add_class (gtk_widget_get_style_context (GTK_WIDGET (editor)),
-				     GTK_STYLE_CLASS_PRIMARY_TOOLBAR);
 
 	gtk_orientable_set_orientation (GTK_ORIENTABLE (editor), GTK_ORIENTATION_VERTICAL);
 
-	editor->details->vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
-	gtk_widget_set_no_show_all (editor->details->vbox, TRUE);
-	gtk_container_set_border_width (GTK_CONTAINER (editor->details->vbox), 6);
+	editor->details->vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 	gtk_box_pack_start (GTK_BOX (editor), editor->details->vbox,
 			    FALSE, FALSE, 0);
-}
-
-void
-nautilus_query_editor_set_default_query (NautilusQueryEditor *editor)
-{
-	nautilus_query_editor_changed (editor);
+	gtk_widget_show (editor->details->vbox);
 }
 
 static void
@@ -949,15 +1057,45 @@ entry_key_press_event_cb (GtkWidget           *widget,
 	return FALSE;
 }
 
+static gboolean
+entry_box_draw_cb (GtkWidget *widget,
+		   cairo_t *cr)
+{
+	GtkStyleContext *context;
+
+	context = gtk_widget_get_style_context (widget);
+
+	gtk_render_background (context, cr, 0, 0,
+			       gtk_widget_get_allocated_width (widget),
+			       gtk_widget_get_allocated_height (widget));
+
+	gtk_render_frame (context, cr, 0, 0,
+			  gtk_widget_get_allocated_width (widget),
+			  gtk_widget_get_allocated_height (widget));
+
+	return FALSE;
+}
+
 static void
 setup_widgets (NautilusQueryEditor *editor)
 {
+	GtkWidget *bg_hbox;
 	GtkWidget *hbox;
 
-	/* Create visible part: */
+	bg_hbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+	gtk_style_context_add_class (gtk_widget_get_style_context (bg_hbox),
+				     GTK_STYLE_CLASS_TOOLBAR);
+	gtk_style_context_add_class (gtk_widget_get_style_context (bg_hbox),
+				     GTK_STYLE_CLASS_PRIMARY_TOOLBAR);
+	g_signal_connect (bg_hbox, "draw", G_CALLBACK (entry_box_draw_cb), NULL);
+
+	gtk_widget_show (bg_hbox);
+	gtk_box_pack_start (GTK_BOX (editor->details->vbox), bg_hbox, FALSE, FALSE, 0);
+
 	hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
 	gtk_widget_show (hbox);
-	gtk_box_pack_start (GTK_BOX (editor->details->vbox), hbox, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (bg_hbox), hbox, FALSE, FALSE, 0);
+	gtk_container_set_border_width (GTK_CONTAINER (hbox), 6);
 
 	editor->details->entry = gtk_search_entry_new ();
 	gtk_box_pack_start (GTK_BOX (hbox), editor->details->entry, TRUE, TRUE, 0);
@@ -971,18 +1109,6 @@ setup_widgets (NautilusQueryEditor *editor)
 	gtk_widget_show (editor->details->entry);
 
 	finish_first_line (editor, hbox, TRUE);
-}
-
-void
-nautilus_query_editor_set_visible (NautilusQueryEditor *editor,
-				   gboolean visible)
-{
-	editor->details->is_visible = visible;
-	if (visible) {
-		gtk_widget_show (editor->details->vbox);
-	} else {
-		gtk_widget_hide (editor->details->vbox);
-	}
 }
 
 static void
@@ -1004,14 +1130,6 @@ static void
 nautilus_query_editor_changed (NautilusQueryEditor *editor)
 {
 	nautilus_query_editor_changed_force (editor, TRUE);
-}
-
-void
-nautilus_query_editor_grab_focus (NautilusQueryEditor *editor)
-{
-	if (editor->details->is_visible) {
-		gtk_widget_grab_focus (editor->details->entry);
-	}
 }
 
 static void
@@ -1058,18 +1176,6 @@ nautilus_query_editor_get_query (NautilusQueryEditor *editor)
 	return query;
 }
 
-void
-nautilus_query_editor_clear_query (NautilusQueryEditor *editor)
-{
-	editor->details->change_frozen = TRUE;
-	gtk_entry_set_text (GTK_ENTRY (editor->details->entry), "");
-
-	g_free (editor->details->last_set_query_text);
-	editor->details->last_set_query_text = g_strdup ("");
-
-	editor->details->change_frozen = FALSE;
-}
-
 GtkWidget *
 nautilus_query_editor_new (void)
 {
@@ -1082,19 +1188,11 @@ nautilus_query_editor_new (void)
 }
 
 static void
-update_location (NautilusQueryEditor *editor,
-		 NautilusQuery       *query)
+update_location (NautilusQueryEditor *editor)
 {
-	char *uri;
 	NautilusFile *file;
 
-	uri = nautilus_query_get_location (query);
-	if (uri == NULL) {
-		return;
-	}
-	g_free (editor->details->current_uri);
-	editor->details->current_uri = uri;
-	file = nautilus_file_get_by_uri (uri);
+	file = nautilus_file_get_by_uri (editor->details->current_uri);
 
 	if (file != NULL) {
 		char *name;
@@ -1115,17 +1213,24 @@ update_location (NautilusQueryEditor *editor,
 }
 
 void
-nautilus_query_editor_set_query (NautilusQueryEditor *editor, NautilusQuery *query)
+nautilus_query_editor_set_location (NautilusQueryEditor *editor,
+				    GFile               *location)
+{
+	g_free (editor->details->current_uri);
+	editor->details->current_uri = g_file_get_uri (location);
+	update_location (editor);
+}
+
+void
+nautilus_query_editor_set_query (NautilusQueryEditor	*editor,
+				 NautilusQuery		*query)
 {
 	NautilusQueryEditorRowType type;
-	char *text;
+	char *text = NULL;
 
-	if (!query) {
-		nautilus_query_editor_clear_query (editor);
-		return;
+	if (query != NULL) {
+		text = nautilus_query_get_text (query);
 	}
-
-	text = nautilus_query_get_text (query);
 
 	if (!text) {
 		text = g_strdup ("");
@@ -1134,14 +1239,21 @@ nautilus_query_editor_set_query (NautilusQueryEditor *editor, NautilusQuery *que
 	editor->details->change_frozen = TRUE;
 	gtk_entry_set_text (GTK_ENTRY (editor->details->entry), text);
 
-	update_location (editor, query);
+	g_free (editor->details->current_uri);
+	editor->details->current_uri = NULL;
 
-	for (type = 0; type < NAUTILUS_QUERY_EDITOR_ROW_LAST; type++) {
-		row_type[type].add_rows_from_query (editor, query);
+	if (query != NULL) {
+		editor->details->current_uri = nautilus_query_get_location (query);
+		update_location (editor);
+
+
+		for (type = 0; type < NAUTILUS_QUERY_EDITOR_ROW_LAST; type++) {
+			row_type[type].add_rows_from_query (editor, query);
+		}
 	}
-	
-	editor->details->change_frozen = FALSE;
 
 	g_free (editor->details->last_set_query_text);
 	editor->details->last_set_query_text = text;
+
+	editor->details->change_frozen = FALSE;
 }

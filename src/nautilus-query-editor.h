@@ -60,16 +60,15 @@ typedef struct {
 
 GType      nautilus_query_editor_get_type     	   (void);
 GtkWidget* nautilus_query_editor_new          	   (void);
-void       nautilus_query_editor_set_default_query (NautilusQueryEditor *editor);
 
-void	   nautilus_query_editor_grab_focus (NautilusQueryEditor *editor);
-void       nautilus_query_editor_clear_query (NautilusQueryEditor *editor);
+gboolean       nautilus_query_editor_handle_event (NautilusQueryEditor *editor,
+						   GdkEventKey         *event);
 
 NautilusQuery *nautilus_query_editor_get_query   (NautilusQueryEditor *editor);
 void           nautilus_query_editor_set_query   (NautilusQueryEditor *editor,
 						  NautilusQuery       *query);
 GFile *        nautilus_query_editor_get_location (NautilusQueryEditor *editor);
-void           nautilus_query_editor_set_visible (NautilusQueryEditor *editor,
-						  gboolean             visible);
+void           nautilus_query_editor_set_location (NautilusQueryEditor *editor,
+						   GFile               *location);
 
 #endif /* NAUTILUS_QUERY_EDITOR_H */
