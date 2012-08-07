@@ -100,7 +100,7 @@ enum
 };
 
 /* These IIDs are used by the preferences code and in nautilus-application.c */
-#define NAUTILUS_ICON_VIEW_IID		"OAFIID:Nautilus_File_Manager_Icon_View"
+#define NAUTILUS_CANVAS_VIEW_IID	"OAFIID:Nautilus_File_Manager_Canvas_View"
 #define NAUTILUS_COMPACT_VIEW_IID	"OAFIID:Nautilus_File_Manager_Compact_View"
 #define NAUTILUS_LIST_VIEW_IID		"OAFIID:Nautilus_File_Manager_List_View"
 
