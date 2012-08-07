@@ -55,6 +55,7 @@
 #include <libnautilus-private/nautilus-metadata.h>
 #include <libnautilus-private/nautilus-module.h>
 #include <libnautilus-private/nautilus-monitor.h>
+#include <libnautilus-private/nautilus-profile.h>
 #include <libnautilus-private/nautilus-search-directory.h>
 
 #define DEBUG_FLAG NAUTILUS_DEBUG_WINDOW
@@ -437,6 +438,7 @@ nautilus_window_slot_open_location_full (NautilusWindowSlot *slot,
 	new_uri = g_file_get_uri (location);
 
 	DEBUG ("Opening location, old: %s, new: %s", old_uri, new_uri);
+	nautilus_profile_start ("Opening location, old: %s, new: %s", old_uri, new_uri);
 
 	g_free (old_uri);
 	g_free (new_uri);
@@ -524,8 +526,7 @@ nautilus_window_slot_open_location_full (NautilusWindowSlot *slot,
 			callback (window, NULL, user_data);
 		}
 
-		g_object_unref (old_location);
-                return;
+		goto done;
         }
 
         begin_location_change (target_slot, location, old_location, new_selection,
@@ -542,7 +543,10 @@ nautilus_window_slot_open_location_full (NautilusWindowSlot *slot,
 		}
 	}
 
+ done:
 	g_clear_object (&old_location);
+
+	nautilus_profile_end (NULL);
 }
 
 const char *
@@ -622,6 +626,8 @@ begin_location_change (NautilusWindowSlot *slot,
         g_assert (type == NAUTILUS_LOCATION_CHANGE_BACK
                   || type == NAUTILUS_LOCATION_CHANGE_FORWARD
                   || distance == 0);
+
+	nautilus_profile_start (NULL);
 
 	/* If there is no new selection and the new location is
 	 * a (grand)parent of the old location then we automatically
@@ -713,6 +719,8 @@ begin_location_change (NautilusWindowSlot *slot,
 				       NAUTILUS_FILE_ATTRIBUTE_MOUNT,
                                        got_file_info_for_view_selection_callback,
 				       slot);
+
+	nautilus_profile_end (NULL);
 }
 
 typedef struct {
@@ -782,6 +790,8 @@ got_file_info_for_view_selection_callback (NautilusFile *file,
 
 	g_assert (slot->determine_view_file == file);
 	slot->determine_view_file = NULL;
+
+	nautilus_profile_start (NULL);
 
 	if (slot->mount_error) {
 		error = g_error_copy (slot->mount_error);
@@ -955,6 +965,8 @@ got_file_info_for_view_selection_callback (NautilusFile *file,
 	g_clear_error (&error);
 
 	nautilus_file_unref (file);
+
+	nautilus_profile_end (NULL);
 }
 
 /* Load a view into the window, either reusing the old one or creating
@@ -976,6 +988,8 @@ create_content_view (NautilusWindowSlot *slot,
 	GError *error = NULL;
 
 	window = nautilus_window_slot_get_window (slot);
+
+	nautilus_profile_start (NULL);
 
  	/* FIXME bugzilla.gnome.org 41243: 
 	 * We should use inheritance instead of these special cases
@@ -1035,6 +1049,8 @@ create_content_view (NautilusWindowSlot *slot,
 		g_propagate_error (error_out, error);
 	}
 
+	nautilus_profile_end (NULL);
+
 	return ret;
 }
 
@@ -1053,7 +1069,8 @@ load_new_location (NautilusWindowSlot *slot,
 
 	selection_copy = eel_g_object_list_copy (selection);
 	view = NULL;
-	
+
+	nautilus_profile_start (NULL);
 	/* Note, these may recurse into report_load_underway */
         if (slot->content_view != NULL && tell_current_content_view) {
 		view = slot->content_view;
@@ -1073,6 +1090,8 @@ load_new_location (NautilusWindowSlot *slot,
 	}
 
 	g_list_free_full (selection_copy, g_object_unref);
+
+	nautilus_profile_end (NULL);
 }
 
 /* A view started to load the location its viewing, either due to
@@ -1087,6 +1106,8 @@ nautilus_window_report_load_underway (NautilusWindow *window,
 
 	g_assert (NAUTILUS_IS_WINDOW (window));
 
+	nautilus_profile_start (NULL);
+
 	if (window->details->temporarily_ignore_view_signals) {
 		return;
 	}
@@ -1099,6 +1120,8 @@ nautilus_window_report_load_underway (NautilusWindow *window,
 	} else {
 		nautilus_window_slot_set_allow_stop (slot, TRUE);
 	}
+
+	nautilus_profile_end (NULL);
 }
 
 static void

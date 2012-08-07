@@ -59,6 +59,7 @@
 #include <libnautilus-private/nautilus-file-attributes.h>
 #include <libnautilus-private/nautilus-global-preferences.h>
 #include <libnautilus-private/nautilus-metadata.h>
+#include <libnautilus-private/nautilus-profile.h>
 #include <libnautilus-private/nautilus-clipboard.h>
 #include <libnautilus-private/nautilus-search-directory.h>
 #include <libnautilus-private/nautilus-signaller.h>
@@ -836,6 +837,8 @@ nautilus_window_constructed (GObject *self)
 
 	window = NAUTILUS_WINDOW (self);
 
+	nautilus_profile_start (NULL);
+
 	G_OBJECT_CLASS (nautilus_window_parent_class)->constructed (self);
 
 	/* disable automatic menubar handling, since we show our regular
@@ -897,6 +900,8 @@ nautilus_window_constructed (GObject *self)
 
 	slot = nautilus_window_pane_open_slot (window->details->active_pane, 0);
 	nautilus_window_set_active_slot (window, slot);
+
+	nautilus_profile_end (NULL);
 }
 
 static void
