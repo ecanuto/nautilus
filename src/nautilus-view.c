@@ -398,6 +398,14 @@ nautilus_view_select_all (NautilusView *view)
 }
 
 static void
+nautilus_view_select_first (NautilusView *view)
+{
+	g_return_if_fail (NAUTILUS_IS_VIEW (view));
+
+	NAUTILUS_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->select_first (view);
+}
+
+static void
 nautilus_view_call_set_selection (NautilusView *view, GList *selection)
 {
 	g_return_if_fail (NAUTILUS_IS_VIEW (view));
@@ -1043,6 +1051,19 @@ nautilus_view_preview_files (NautilusView *view,
 }
 
 void
+nautilus_view_activate_selection (NautilusView *view)
+{
+	GList *selection;
+
+	selection = nautilus_view_get_selection (view);
+	nautilus_view_activate_files (view,
+				      selection,
+				      0,
+				      TRUE);
+	nautilus_file_list_free (selection);
+}
+
+void
 nautilus_view_activate_files (NautilusView *view,
 			      GList *files,
 			      NautilusWindowOpenFlags flags,
@@ -1082,17 +1103,10 @@ static void
 action_open_callback (GtkAction *action,
 		      gpointer callback_data)
 {
-	GList *selection;
 	NautilusView *view;
 
 	view = NAUTILUS_VIEW (callback_data);
-
-	selection = nautilus_view_get_selection (view);
-	nautilus_view_activate_files (view,
-				      selection,
-				      0,
-				      TRUE);
-	nautilus_file_list_free (selection);
+	nautilus_view_activate_selection (view);
 }
 
 static void
@@ -3113,6 +3127,7 @@ done_loading (NautilusView *view,
 	      gboolean all_files_seen)
 {
 	GList *selection;
+	gboolean do_reveal = FALSE;
 
 	if (!view->details->loading) {
 		return;
@@ -3131,13 +3146,22 @@ done_loading (NautilusView *view,
 		reset_update_interval (view);
 
 		selection = view->details->pending_selection;
-		if (selection != NULL && all_files_seen) {
+
+		if (NAUTILUS_IS_SEARCH_DIRECTORY (view->details->model)
+		    && all_files_seen) {
+			nautilus_view_select_first (view);
+			do_reveal = TRUE;
+		} else if (selection != NULL && all_files_seen) {
 			view->details->pending_selection = NULL;
 
 			view->details->selection_change_is_due_to_shell = TRUE;
 			nautilus_view_call_set_selection (view, selection);
 			view->details->selection_change_is_due_to_shell = FALSE;
+			g_list_free_full (selection, g_object_unref);
+			do_reveal = TRUE;
+		}
 
+		if (do_reveal) {
 			if (NAUTILUS_IS_LIST_VIEW (view)) {
 				/* HACK: We should be able to directly call reveal_selection here,
 				 * but at this point the GtkTreeView hasn't allocated the new nodes
@@ -3155,7 +3179,6 @@ done_loading (NautilusView *view,
 				nautilus_view_reveal_selection (view);
 			}
 		}
-		g_list_free_full (selection, g_object_unref);
 		nautilus_view_display_selection_info (view);
 	}
 
