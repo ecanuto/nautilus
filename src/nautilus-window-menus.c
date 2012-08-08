@@ -517,11 +517,11 @@ action_new_tab_callback (GtkAction *action,
 }
 
 static void
-action_go_to_location_callback (GtkAction *action,
+action_enter_location_callback (GtkAction *action,
 				gpointer user_data)
 {
-	NautilusWindow *window = user_data;
-	nautilus_window_ensure_location_bar (window);
+	g_action_group_activate_action (G_ACTION_GROUP (g_application_get_default ()),
+					"enter-location", NULL);
 }
 
 static void
@@ -707,9 +707,9 @@ static const GtkActionEntry main_entries[] = {
   /* name, stock id, label */  { NAUTILUS_ACTION_FORWARD, "go-next-symbolic", N_("_Forward"),
 				 "<alt>Right", N_("Go to the next visited location"),
 				 G_CALLBACK (action_forward_callback) },
-  /* name, stock id, label */  { "Go to Location", NULL, N_("_Location..."),
+  /* name, stock id, label */  { NAUTILUS_ACTION_ENTER_LOCATION, NULL, N_("Enter _Location..."),
                                  "<control>L", N_("Specify a location to open"),
-                                 G_CALLBACK (action_go_to_location_callback) },
+                                 G_CALLBACK (action_enter_location_callback) },
   /* name, stock id, label */  { "SplitViewNextPane", NULL, N_("S_witch to Other Pane"),
 				 "F6", N_("Move focus to the other pane in a split view window"),
 				 G_CALLBACK (action_split_view_switch_next_pane_callback) },
@@ -772,6 +772,7 @@ static const GtkRadioActionEntry main_radio_entries[] = {
 static const gchar* app_actions[] = {
 	NAUTILUS_ACTION_NEW_WINDOW,
 	NAUTILUS_ACTION_CONNECT_TO_SERVER,
+	NAUTILUS_ACTION_ENTER_LOCATION,
 	NAUTILUS_ACTION_EDIT_BOOKMARKS,
 	NAUTILUS_ACTION_PREFERENCES,
 	NAUTILUS_ACTION_HELP,
