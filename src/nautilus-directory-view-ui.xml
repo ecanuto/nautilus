@@ -108,7 +108,6 @@
   <separator name="File actions separator"/>
   <placeholder name="File Actions">
     <menuitem name="Create Link" action="Create Link"/>
-    <menuitem name="Properties" action="Properties"/>
     <menuitem name="Rename" action="Rename"/>
     <menuitem name="Set As Wallpaper" action="Set As Wallpaper"/>
     <menu action="CopyToMenu">
@@ -143,6 +142,8 @@
     <menuitem name="Poll" action="Poll"/>
   </placeholder>
   <menuitem name="Connect To Server Link" action="Connect To Server Link"/>
+  <separator/>
+  <menuitem name="Properties" action="Properties"/>
 </popup>
 <popup name="location">
   <placeholder name="Open Placeholder">
