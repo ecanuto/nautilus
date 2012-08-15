@@ -110,6 +110,7 @@
     <menuitem name="Create Link" action="Create Link"/>
     <menuitem name="Properties" action="Properties"/>
     <menuitem name="Rename" action="Rename"/>
+    <menuitem name="Set As Wallpaper" action="Set As Wallpaper"/>
     <menu action="CopyToMenu">
       <menuitem name="Copy to next pane" action="Copy to next pane"/>
       <menuitem name="Copy to Home" action="Copy to Home"/>
