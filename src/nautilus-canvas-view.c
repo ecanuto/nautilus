@@ -926,7 +926,6 @@ nautilus_canvas_view_begin_loading (NautilusView *view)
 	NautilusCanvasView *canvas_view;
 	GtkWidget *canvas_container;
 	NautilusFile *file;
-	int level;
 	char *sort_name, *uri;
 
 	g_return_if_fail (NAUTILUS_IS_CANVAS_VIEW (view));
@@ -942,23 +941,6 @@ nautilus_canvas_view_begin_loading (NautilusView *view)
 						 !eel_uri_is_search (uri));
 
 	g_free (uri);
-
-	/* Set up the zoom level from the metadata. */
-	if (nautilus_view_supports_zooming (NAUTILUS_VIEW (canvas_view))) {
-		if (canvas_view->details->compact) {
-			level = nautilus_file_get_integer_metadata
-				(file, 
-				 NAUTILUS_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL, 
-				 get_default_zoom_level (canvas_view));
-		} else {
-			level = nautilus_file_get_integer_metadata
-				(file, 
-				 NAUTILUS_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 
-				 get_default_zoom_level (canvas_view));
-		}
-
-		nautilus_canvas_view_set_zoom_level (canvas_view, level, TRUE);
-	}
 
 	/* Set the sort mode.
 	 * It's OK not to resort the icons because the
@@ -1051,20 +1033,6 @@ nautilus_canvas_view_set_zoom_level (NautilusCanvasView *view,
 			g_signal_emit_by_name (view, "zoom_level_changed");
 		}
 		return;
-	}
-
-	if (view->details->compact) {
-		nautilus_file_set_integer_metadata
-			(nautilus_view_get_directory_as_file (NAUTILUS_VIEW (view)), 
-			 NAUTILUS_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL, 
-			 get_default_zoom_level (view),
-			 new_level);
-	} else {
-		nautilus_file_set_integer_metadata
-			(nautilus_view_get_directory_as_file (NAUTILUS_VIEW (view)), 
-			 NAUTILUS_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 
-			 get_default_zoom_level (view),
-			 new_level);
 	}
 
 	nautilus_canvas_container_set_zoom_level (canvas_container, new_level);
@@ -2048,33 +2016,6 @@ default_sort_in_reverse_order_changed_callback (gpointer callback_data)
 }
 
 static void
-default_zoom_level_changed_callback (gpointer callback_data)
-{
-	NautilusCanvasView *canvas_view;
-	NautilusFile *file;
-	int level;
-
-	g_return_if_fail (NAUTILUS_IS_CANVAS_VIEW (callback_data));
-
-	canvas_view = NAUTILUS_CANVAS_VIEW (callback_data);
-
-	if (nautilus_view_supports_zooming (NAUTILUS_VIEW (canvas_view))) {
-		file = nautilus_view_get_directory_as_file (NAUTILUS_VIEW (canvas_view));
-
-		if (nautilus_canvas_view_is_compact (canvas_view)) {
-			level = nautilus_file_get_integer_metadata (file, 
-								    NAUTILUS_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL, 
-								    get_default_zoom_level (canvas_view));
-		} else {
-			level = nautilus_file_get_integer_metadata (file, 
-								    NAUTILUS_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 
-								    get_default_zoom_level (canvas_view));
-		}
-		nautilus_view_zoom_to_level (NAUTILUS_VIEW (canvas_view), level);
-	}
-}
-
-static void
 labels_beside_icons_changed_callback (gpointer callback_data)
 {
 	NautilusCanvasView *canvas_view;
@@ -2449,18 +2390,12 @@ nautilus_canvas_view_finalize (GObject *object)
 					      canvas_view);
 
 	g_signal_handlers_disconnect_by_func (nautilus_icon_view_preferences,
-					      default_zoom_level_changed_callback,
-					      canvas_view);
-	g_signal_handlers_disconnect_by_func (nautilus_icon_view_preferences,
 					      labels_beside_icons_changed_callback,
 					      canvas_view);
 	g_signal_handlers_disconnect_by_func (nautilus_icon_view_preferences,
 					      text_attribute_names_changed_callback,
 					      canvas_view);
 
-	g_signal_handlers_disconnect_by_func (nautilus_compact_view_preferences,
-					      default_zoom_level_changed_callback,
-					      canvas_view);
 	g_signal_handlers_disconnect_by_func (nautilus_compact_view_preferences,
 					      all_columns_same_width_changed_callback,
 					      canvas_view);
@@ -2600,10 +2535,6 @@ nautilus_canvas_view_init (NautilusCanvasView *canvas_view)
 				  canvas_view);
 
 	g_signal_connect_swapped (nautilus_icon_view_preferences,
-				  "changed::" NAUTILUS_PREFERENCES_ICON_VIEW_DEFAULT_ZOOM_LEVEL,
-				  G_CALLBACK (default_zoom_level_changed_callback),
-				  canvas_view);
-	g_signal_connect_swapped (nautilus_icon_view_preferences,
 				  "changed::" NAUTILUS_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS,
 				  G_CALLBACK (labels_beside_icons_changed_callback),
 				  canvas_view);
@@ -2612,10 +2543,6 @@ nautilus_canvas_view_init (NautilusCanvasView *canvas_view)
 				  G_CALLBACK (text_attribute_names_changed_callback),
 				  canvas_view);
 
-	g_signal_connect_swapped (nautilus_compact_view_preferences,
-				  "changed::" NAUTILUS_PREFERENCES_COMPACT_VIEW_DEFAULT_ZOOM_LEVEL,
-				  G_CALLBACK (default_zoom_level_changed_callback),
-				  canvas_view);
 	g_signal_connect_swapped (nautilus_compact_view_preferences,
 				  "changed::" NAUTILUS_PREFERENCES_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH,
 				  G_CALLBACK (all_columns_same_width_changed_callback),
