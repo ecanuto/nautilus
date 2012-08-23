@@ -320,7 +320,7 @@ nautilus_window_pane_constructed (GObject *obj)
 	header_size_group = gtk_size_group_new (GTK_SIZE_GROUP_VERTICAL);
 	gtk_size_group_set_ignore_hidden (header_size_group, FALSE);
 
-	pane->action_group = window->details->toolbar_action_group;
+	pane->action_group = nautilus_window_get_main_action_group (window);
 
 	/* start as non-active */
 	nautilus_window_pane_set_active (pane, FALSE);
@@ -426,13 +426,6 @@ void
 nautilus_window_pane_set_active (NautilusWindowPane *pane,
 				 gboolean is_active)
 {
-	NautilusNavigationState *nav_state;
-
-	if (is_active) {
-		nav_state = nautilus_window_get_navigation_state (pane->window);
-		nautilus_navigation_state_set_master (nav_state, pane->action_group);
-	}
-
 	/* pane inactive style */
 	nautilus_window_pane_set_active_style (pane, is_active);
 }

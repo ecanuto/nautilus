@@ -290,16 +290,15 @@ nautilus_window_new_tab (NautilusWindow *window)
 	}
 }
 
-static void
-action_show_hide_search_callback (GtkAction *action,
-				  gpointer user_data)
+void
+nautilus_window_set_search_visible (NautilusWindow *window,
+				    gboolean visible)
 {
-	NautilusWindow *window = user_data;
 	NautilusWindowSlot *slot;
 
 	slot = window->details->active_pane->active_slot;
 
-	if (gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action))) {
+	if (visible) {
 		remember_focus_widget (window);
 		nautilus_window_slot_set_query_editor_visible (slot, TRUE);
 	} else {
@@ -622,7 +621,8 @@ toggle_toolbar_search_button (NautilusWindow *window,
 {
 	GtkAction *action;
 
-	action = gtk_action_group_get_action (window->details->toolbar_action_group, NAUTILUS_ACTION_SEARCH);
+	action = gtk_action_group_get_action (nautilus_window_get_main_action_group (window),
+					      NAUTILUS_ACTION_SEARCH);
 
 	gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), active);
 }
@@ -656,7 +656,8 @@ void
 nautilus_window_sync_location_widgets (NautilusWindow *window)
 {
 	NautilusWindowSlot *slot, *active_slot;
-	NautilusNavigationState *nav_state;
+	GtkActionGroup *action_group;
+	GtkAction *action;;
 
 	slot = window->details->active_pane->active_slot;
 
@@ -680,14 +681,13 @@ nautilus_window_sync_location_widgets (NautilusWindow *window)
 
 	/* Check if the back and forward buttons need enabling or disabling. */
 	active_slot = nautilus_window_get_active_slot (window);
-	nav_state = nautilus_window_get_navigation_state (window);
+	action_group = nautilus_window_get_main_action_group (window);
 
-	nautilus_navigation_state_set_boolean (nav_state,
-					       NAUTILUS_ACTION_BACK,
-					       active_slot->back_list != NULL);
-	nautilus_navigation_state_set_boolean (nav_state,
-					       NAUTILUS_ACTION_FORWARD,
-					       active_slot->forward_list != NULL);
+	action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_BACK);
+	gtk_action_set_sensitive (action, active_slot->back_list != NULL);
+
+	action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_FORWARD);
+	gtk_action_set_sensitive (action, active_slot->forward_list != NULL);
 }
 
 GtkWidget *
@@ -760,54 +760,10 @@ path_bar_path_event_callback (NautilusPathBar *path_bar,
 	}
 }
 
-static void
-action_view_list_changed_cb (GtkRadioAction *action,
-			     GtkRadioAction *current,
-                             NautilusWindow *window)
-{
-	NautilusWindowSlot *slot;
-
-	if (action != current)
-		return;
-
-	slot = nautilus_window_get_active_slot (window);
-	nautilus_window_slot_set_content_view (slot, NAUTILUS_LIST_VIEW_ID);
-}
-
-static void
-action_view_compact_changed_cb (GtkRadioAction *action,
-			     GtkRadioAction *current,
-                             NautilusWindow *window)
-{
-	NautilusWindowSlot *slot;
-
-	if (action != current)
-		return;
-
-	slot = nautilus_window_get_active_slot (window);
-	nautilus_window_slot_set_content_view (slot, FM_COMPACT_VIEW_ID);
-}
-
-static void
-action_view_grid_changed_cb (GtkRadioAction *action,
-			     GtkRadioAction *current,
-                             NautilusWindow *window)
-{
-	NautilusWindowSlot *slot;
-
-	if (action != current)
-		return;
-
-	slot = nautilus_window_get_active_slot (window);
-	nautilus_window_slot_set_content_view (slot, NAUTILUS_CANVAS_VIEW_ID);
-}
-
 static GtkWidget *
 create_toolbar (NautilusWindow *window)
 {
 	GtkSizeGroup *header_size_group;
-	GtkActionGroup *action_group;
-	GtkAction *action;
 	GtkWidget *toolbar;
 	GtkWidget *path_bar;
 	GtkWidget *location_bar;
@@ -816,24 +772,8 @@ create_toolbar (NautilusWindow *window)
 	gtk_size_group_set_ignore_hidden (header_size_group, FALSE);
 
 	/* build the toolbar */
-	action_group = nautilus_window_create_toolbar_action_group (window);
-	window->details->toolbar_action_group = action_group;
-	action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_SEARCH);
-	g_signal_connect (action, "activate",
-			  G_CALLBACK (action_show_hide_search_callback), window);
-	action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_VIEW_LIST);
-	g_signal_connect (action, "changed",
-			  G_CALLBACK (action_view_list_changed_cb), window);
-	action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_VIEW_COMPACT);
-	g_signal_connect (action, "changed",
-			  G_CALLBACK (action_view_compact_changed_cb), window);
-	action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_VIEW_GRID);
-	g_signal_connect (action, "changed",
-			  G_CALLBACK (action_view_grid_changed_cb), window);
-
-	nautilus_navigation_state_set_master (window->details->nav_state, window->details->toolbar_action_group );
-
-	toolbar = nautilus_toolbar_new (nautilus_window_get_ui_manager (NAUTILUS_WINDOW (window)), action_group);
+	toolbar = nautilus_toolbar_new (nautilus_window_get_ui_manager (NAUTILUS_WINDOW (window)),
+					nautilus_window_get_main_action_group (NAUTILUS_WINDOW (window)));
 
 	g_object_bind_property (window, "disable-chrome",
 				toolbar, "visible",
@@ -1034,7 +974,6 @@ nautilus_window_finalize (GObject *object)
 	g_signal_handlers_disconnect_by_func (nautilus_window_state,
 					      side_pane_id_changed, window);
 
-	g_clear_object (&window->details->nav_state);
 	g_clear_object (&window->details->ui_manager);
 
 	g_free (window->details->sidebar_id);
@@ -1382,6 +1321,7 @@ void
 nautilus_window_sync_view_as_menus (NautilusWindow *window)
 {
 	NautilusWindowSlot *slot;
+	GtkActionGroup *action_group;
 	GtkAction *action;
 
 	g_assert (NAUTILUS_IS_WINDOW (window));
@@ -1392,52 +1332,17 @@ nautilus_window_sync_view_as_menus (NautilusWindow *window)
 		return;
 	}
 
+	action_group = nautilus_window_get_main_action_group (window);
+
 	if (nautilus_window_slot_content_view_matches_iid (slot, NAUTILUS_LIST_VIEW_ID)) {
-		action = gtk_action_group_get_action (window->details->toolbar_action_group, NAUTILUS_ACTION_VIEW_LIST);
+		action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_VIEW_LIST);
 	} else if (nautilus_window_slot_content_view_matches_iid (slot, FM_COMPACT_VIEW_ID)) {
-		action = gtk_action_group_get_action (window->details->toolbar_action_group, NAUTILUS_ACTION_VIEW_COMPACT);
+		action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_VIEW_COMPACT);
 	} else {
-		action = gtk_action_group_get_action (window->details->toolbar_action_group, NAUTILUS_ACTION_VIEW_GRID);
+		action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_VIEW_GRID);
 	}
 
-	/* Don't trigger the action callback when we're synchronizing */
-	g_signal_handlers_block_matched (action,
-					 G_SIGNAL_MATCH_FUNC,
-					 0, 0,
-					 NULL,
-					 action_view_list_changed_cb,
-					 NULL);
-	g_signal_handlers_block_matched (action,
-					 G_SIGNAL_MATCH_FUNC,
-					 0, 0,
-					 NULL,
-					 action_view_compact_changed_cb,
-					 NULL);
-	g_signal_handlers_block_matched (action,
-					 G_SIGNAL_MATCH_FUNC,
-					 0, 0,
-					 NULL,
-					 action_view_grid_changed_cb,
-					 NULL);
 	gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), TRUE);
-	g_signal_handlers_unblock_matched (action,
-					   G_SIGNAL_MATCH_FUNC,
-					   0, 0,
-					   NULL,
-					   action_view_list_changed_cb,
-					   NULL);
-	g_signal_handlers_unblock_matched (action,
-					   G_SIGNAL_MATCH_FUNC,
-					   0, 0,
-					   NULL,
-					   action_view_compact_changed_cb,
-					   NULL);
-	g_signal_handlers_unblock_matched (action,
-					   G_SIGNAL_MATCH_FUNC,
-					   0, 0,
-					   NULL,
-					   action_view_grid_changed_cb,
-					   NULL);
 }
 
 void
@@ -1648,14 +1553,6 @@ nautilus_window_get_main_action_group (NautilusWindow *window)
 	g_return_val_if_fail (NAUTILUS_IS_WINDOW (window), NULL);
 
 	return window->details->main_action_group;
-}
-
-NautilusNavigationState *
-nautilus_window_get_navigation_state (NautilusWindow *window)
-{
-	g_return_val_if_fail (NAUTILUS_IS_WINDOW (window), NULL);
-
-	return window->details->nav_state;
 }
 
 NautilusWindowPane *
@@ -2155,8 +2052,6 @@ nautilus_window_split_view_off (NautilusWindow *window)
 	}
 
 	nautilus_window_set_active_pane (window, active_pane);
-	nautilus_navigation_state_set_master (window->details->nav_state,
-					      active_pane->action_group);
 
 	nautilus_window_update_show_hide_menu_items (window);
 	window_set_search_action_text (window, TRUE);
