@@ -96,7 +96,6 @@ struct NautilusWindowDetails
 typedef void (*NautilusBookmarkFailedCallback) (NautilusWindow *window,
                                                 NautilusBookmark *bookmark);
 
-void               nautilus_window_sync_view_as_menus                    (NautilusWindow    *window);
 void               nautilus_window_load_extension_menus                  (NautilusWindow    *window);
 NautilusWindowPane *nautilus_window_get_next_pane                        (NautilusWindow *window);
 
@@ -119,6 +118,8 @@ void nautilus_window_sync_title            (NautilusWindow *window,
 					    NautilusWindowSlot *slot);
 void nautilus_window_sync_zoom_widgets     (NautilusWindow *window);
 void nautilus_window_sync_up_button        (NautilusWindow *window);
+void nautilus_window_sync_view_as_menus    (NautilusWindow *window);
+
 
 void nautilus_window_set_search_visible   (NautilusWindow *window,
                                            gboolean        visible);
