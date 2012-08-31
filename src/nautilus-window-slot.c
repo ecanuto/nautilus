@@ -50,7 +50,13 @@ enum {
 	LAST_SIGNAL
 };
 
+enum {
+	PROP_PANE = 1,
+	NUM_PROPERTIES
+};
+
 static guint signals[LAST_SIGNAL] = { 0 };
+static GParamSpec *properties[NUM_PROPERTIES] = { NULL, };
 
 gboolean
 nautilus_window_slot_handle_event (NautilusWindowSlot *slot,
@@ -288,9 +294,48 @@ floating_bar_action_cb (NautilusFloatingBar *floating_bar,
 }
 
 static void
-nautilus_window_slot_init (NautilusWindowSlot *slot)
+nautilus_window_slot_set_property (GObject *object,
+				   guint property_id,
+				   const GValue *value,
+				   GParamSpec *pspec)
 {
+	NautilusWindowSlot *slot = NAUTILUS_WINDOW_SLOT (object);
+
+	switch (property_id) {
+	case PROP_PANE:
+		slot->pane = g_value_get_object (value);
+		break;
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+		break;
+	}
+}
+
+static void
+nautilus_window_slot_get_property (GObject *object,
+				   guint property_id,
+				   GValue *value,
+				   GParamSpec *pspec)
+{
+	NautilusWindowSlot *slot = NAUTILUS_WINDOW_SLOT (object);
+
+	switch (property_id) {
+	case PROP_PANE:
+		g_value_set_object (value, slot->pane);
+		break;
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+		break;
+	}
+}
+
+static void
+nautilus_window_slot_constructed (GObject *object)
+{
+	NautilusWindowSlot *slot = NAUTILUS_WINDOW_SLOT (object);
 	GtkWidget *extras_vbox;
+
+	G_OBJECT_CLASS (nautilus_window_slot_parent_class)->constructed (object);
 
 	gtk_orientable_set_orientation (GTK_ORIENTABLE (slot),
 					GTK_ORIENTATION_VERTICAL);
@@ -323,6 +368,12 @@ nautilus_window_slot_init (NautilusWindowSlot *slot)
 			  G_CALLBACK (floating_bar_action_cb), slot);
 
 	slot->title = g_strdup (_("Loading..."));
+}
+
+static void
+nautilus_window_slot_init (NautilusWindowSlot *slot)
+{
+	/* do nothing */
 }
 
 static void
@@ -402,6 +453,9 @@ nautilus_window_slot_class_init (NautilusWindowSlotClass *klass)
 	klass->inactive = real_inactive;
 
 	oclass->dispose = nautilus_window_slot_dispose;
+	oclass->constructed = nautilus_window_slot_constructed;
+	oclass->set_property = nautilus_window_slot_set_property;
+	oclass->get_property = nautilus_window_slot_get_property;
 
 	signals[ACTIVE] =
 		g_signal_new ("active",
@@ -430,6 +484,15 @@ nautilus_window_slot_class_init (NautilusWindowSlotClass *klass)
 			      G_TYPE_NONE, 2,
 			      G_TYPE_STRING,
 			      G_TYPE_STRING);
+
+	properties[PROP_PANE] =
+		g_param_spec_object ("pane",
+				     "The NautilusWindowPane",
+				     "The NautilusWindowPane this slot is part of",
+				     NAUTILUS_TYPE_WINDOW_PANE,
+				     G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+
+	g_object_class_install_properties (oclass, NUM_PROPERTIES, properties);
 }
 
 GFile *
@@ -783,10 +846,7 @@ nautilus_window_slot_should_close_with_mount (NautilusWindowSlot *slot,
 NautilusWindowSlot *
 nautilus_window_slot_new (NautilusWindowPane *pane)
 {
-	NautilusWindowSlot *slot;
-
-	slot = g_object_new (NAUTILUS_TYPE_WINDOW_SLOT, NULL);
-	slot->pane = pane;
-
-	return slot;
+	return g_object_new (NAUTILUS_TYPE_WINDOW_SLOT,
+			     "pane", pane,
+			     NULL);
 }
