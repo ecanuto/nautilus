@@ -51,13 +51,15 @@ struct NautilusWindowSlotClass {
 	void (* inactive) (NautilusWindowSlot *slot);
 };
 
+typedef struct NautilusWindowSlotDetails NautilusWindowSlotDetails;
+
 /* Each NautilusWindowSlot corresponds to a location in the window
  * for displaying a NautilusView, i.e. a tab.
  */
 struct NautilusWindowSlot {
 	GtkBox parent;
 
-	NautilusWindowPane *pane;
+	NautilusWindowSlotDetails *details;
 
 	/* slot contains
  	 *  1) an event box containing extra_location_widgets
@@ -119,7 +121,12 @@ struct NautilusWindowSlot {
 
 GType   nautilus_window_slot_get_type (void);
 
-NautilusWindowSlot * nautilus_window_slot_new (NautilusWindowPane *pane);
+NautilusWindowSlot * nautilus_window_slot_new              (NautilusWindow *window);
+
+NautilusWindow * nautilus_window_slot_get_window           (NautilusWindowSlot *slot);
+void             nautilus_window_slot_set_window           (NautilusWindowSlot *slot,
+							    NautilusWindow     *window);
+NautilusWindowPane * nautilus_window_slot_get_window_pane  (NautilusWindowSlot *slot);
 
 void    nautilus_window_slot_update_title		   (NautilusWindowSlot *slot);
 void    nautilus_window_slot_set_query_editor_visible	   (NautilusWindowSlot *slot,
@@ -172,7 +179,6 @@ void    nautilus_window_slot_remove_extra_location_widgets (NautilusWindowSlot *
 
 NautilusView * nautilus_window_slot_get_current_view     (NautilusWindowSlot *slot);
 char           * nautilus_window_slot_get_current_uri      (NautilusWindowSlot *slot);
-NautilusWindow * nautilus_window_slot_get_window           (NautilusWindowSlot *slot);
 void           nautilus_window_slot_make_hosting_pane_active (NautilusWindowSlot *slot);
 
 void nautilus_window_slot_clear_forward_list (NautilusWindowSlot *slot);

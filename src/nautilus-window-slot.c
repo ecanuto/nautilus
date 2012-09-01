@@ -55,6 +55,10 @@ enum {
 	NUM_PROPERTIES
 };
 
+struct NautilusWindowSlotDetails {
+	NautilusWindow *window;
+};
+
 static guint signals[LAST_SIGNAL] = { 0 };
 static GParamSpec *properties[NUM_PROPERTIES] = { NULL, };
 
@@ -142,7 +146,7 @@ query_editor_cancel_callback (NautilusQueryEditor *editor,
 	NautilusWindow *window;
 	GtkActionGroup *action_group;
 
-	window = slot->pane->window;
+	window = slot->details->pane->window;
 	action_group = nautilus_window_get_main_action_group (window);
 	search = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_SEARCH);
 
@@ -252,7 +256,7 @@ real_active (NautilusWindowSlot *slot)
 	NautilusWindow *window;
 	int page_num;
 
-	window = slot->pane->window;
+	window = slot->details->pane->window;
 	page_num = gtk_notebook_page_num (GTK_NOTEBOOK (slot->pane->notebook),
 					  GTK_WIDGET (slot));
 	g_assert (page_num >= 0);
@@ -301,7 +305,7 @@ nautilus_window_slot_set_property (GObject *object,
 
 	switch (property_id) {
 	case PROP_PANE:
-		slot->pane = g_value_get_object (value);
+		nautilus_window_slot_set_pane (slot, g_value_get_object (value));
 		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -319,7 +323,7 @@ nautilus_window_slot_get_property (GObject *object,
 
 	switch (property_id) {
 	case PROP_PANE:
-		g_value_set_object (value, slot->pane);
+		g_value_set_object (value, slot->details->pane);
 		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -371,7 +375,8 @@ nautilus_window_slot_constructed (GObject *object)
 static void
 nautilus_window_slot_init (NautilusWindowSlot *slot)
 {
-	/* do nothing */
+	slot->details = G_TYPE_INSTANCE_GET_PRIVATE
+		(slot, NAUTILUS_TYPE_WINDOW_SLOT, NautilusWindowSlotDetails);
 }
 
 static void
@@ -431,7 +436,7 @@ nautilus_window_slot_dispose (GObject *object)
 		slot->find_mount_cancellable = NULL;
 	}
 
-	slot->pane = NULL;
+	slot->details->pane = NULL;
 
 	g_free (slot->title);
 	slot->title = NULL;
@@ -485,9 +490,10 @@ nautilus_window_slot_class_init (NautilusWindowSlotClass *klass)
 				     "The NautilusWindowPane",
 				     "The NautilusWindowPane this slot is part of",
 				     NAUTILUS_TYPE_WINDOW_PANE,
-				     G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+				     G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
 
 	g_object_class_install_properties (oclass, NUM_PROPERTIES, properties);
+	g_type_class_add_private (klass, sizeof (NautilusWindowSlotDetails));
 }
 
 GFile *
@@ -512,6 +518,33 @@ nautilus_window_slot_get_location_uri (NautilusWindowSlot *slot)
 	return NULL;
 }
 
+NautilusWindow *
+nautilus_window_slot_get_window (NautilusWindowSlot *slot)
+{
+	g_assert (NAUTILUS_IS_WINDOW_SLOT (slot));
+	return slot->details->pane->window;
+}
+
+void
+nautilus_window_slot_set_window (NautilusWindowSlot *slot,
+				 NautilusWindow *window)
+{
+	g_assert (NAUTILUS_IS_WINDOW_SLOT (slot));
+	g_assert (NAUTILUS_IS_WINDOW (window));
+
+	if (slot->details->pane->window != window) {
+		slot->details->pane->window = window;
+		g_object_notify_by_pspec (G_OBJECT (slot), properties[PROP_WINDOW]);
+	}
+}
+
+NautilusWindowPane *
+nautilus_window_slot_get_window_pane (NautilusWindowSlot *slot)
+{
+	g_assert (NAUTILUS_IS_WINDOW_SLOT (slot));
+	return slot->details->pane;
+}
+
 void
 nautilus_window_slot_make_hosting_pane_active (NautilusWindowSlot *slot)
 {
@@ -521,12 +554,6 @@ nautilus_window_slot_make_hosting_pane_active (NautilusWindowSlot *slot)
 					 slot);
 }
 
-NautilusWindow *
-nautilus_window_slot_get_window (NautilusWindowSlot *slot)
-{
-	g_assert (NAUTILUS_IS_WINDOW_SLOT (slot));
-	return slot->pane->window;
-}
 
 /* nautilus_window_slot_update_title:
  * 
