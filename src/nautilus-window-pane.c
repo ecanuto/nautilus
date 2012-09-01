@@ -50,6 +50,18 @@ enum {
 	NUM_PROPERTIES
 };
 
+enum {
+	GO_UP,
+	RELOAD,
+	PROMPT_FOR_LOCATION,
+	LOADING_URI,
+	HIDDEN_FILES_MODE_CHANGED,
+	SLOT_ADDED,
+	SLOT_REMOVED,
+	LAST_SIGNAL
+};
+
+static guint signals[LAST_SIGNAL] = { 0 };
 static GParamSpec *properties[NUM_PROPERTIES] = { NULL, };
 
 G_DEFINE_TYPE (NautilusWindowPane, nautilus_window_pane,
@@ -425,7 +437,7 @@ nautilus_window_pane_slot_close (NautilusWindowPane *pane,
 			nautilus_window_set_active_slot (window, next_slot);
 		}
 
-		nautilus_window_pane_close_slot (pane, slot);
+		nautilus_window_pane_close_slot (pane, slot, TRUE);
 
 		/* If that was the last slot in the pane, close the pane or even the whole window. */
 		if (pane->slots == NULL) {
@@ -462,7 +474,8 @@ nautilus_window_pane_grab_focus (NautilusWindowPane *pane)
 
 void
 nautilus_window_pane_close_slot (NautilusWindowPane *pane,
-				 NautilusWindowSlot *slot)
+				 NautilusWindowSlot *slot,
+				 gboolean            remove_from_notebook)
 {
 	int page_num;
 	GtkNotebook *notebook;
@@ -473,25 +486,27 @@ nautilus_window_pane_close_slot (NautilusWindowPane *pane,
 
 	/* save pane because slot is not valid anymore after this call */
 	pane = nautilus_window_slot_get_window_pane(slot);
-	notebook = GTK_NOTEBOOK (pane->notebook);
 
 	nautilus_window_manage_views_close_slot (slot);
 	pane->slots = g_list_remove (pane->slots, slot);
 
-	/* right now we can't send signal
-	g_signal_emit (pane->window, signals[SLOT_REMOVED], 0, slot);*/
+	g_signal_emit (pane->window, signals[SLOT_REMOVED], 0, slot);
 
-	page_num = gtk_notebook_page_num (notebook, GTK_WIDGET (slot));
-	g_assert (page_num >= 0);
+	notebook = GTK_NOTEBOOK (pane->notebook);
 
-	g_signal_handlers_block_by_func (notebook,
-					 G_CALLBACK (notebook_switch_page_cb),
-					 pane);
-	/* this will call gtk_widget_destroy on the slot */
-	gtk_notebook_remove_page (notebook, page_num);
-	g_signal_handlers_unblock_by_func (notebook,
-					   G_CALLBACK (notebook_switch_page_cb),
-					   pane);
+	if (remove_from_notebook) {
+		page_num = gtk_notebook_page_num (notebook, GTK_WIDGET (slot));
+		g_assert (page_num >= 0);
+
+		g_signal_handlers_block_by_func (notebook,
+						 G_CALLBACK (notebook_switch_page_cb),
+						 pane);
+		/* this will call gtk_widget_destroy on the slot */
+		gtk_notebook_remove_page (notebook, page_num);
+		g_signal_handlers_unblock_by_func (notebook,
+						   G_CALLBACK (notebook_switch_page_cb),
+						   pane);
+	}
 }
 
 NautilusWindowSlot *

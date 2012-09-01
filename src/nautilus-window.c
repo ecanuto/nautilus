@@ -1079,7 +1079,7 @@ nautilus_window_close_pane (NautilusWindow *window,
 	while (pane->slots != NULL) {
 		NautilusWindowSlot *slot = pane->slots->data;
 
-		nautilus_window_pane_close_slot (pane, slot);
+		nautilus_window_pane_close_slot (pane, slot, TRUE);
 	}
 
 	/* If the pane was active, set it to NULL. The caller is responsible

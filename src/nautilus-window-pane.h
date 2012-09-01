@@ -73,7 +73,8 @@ NautilusWindowPane *nautilus_window_pane_new (NautilusWindow *window);
 NautilusWindowSlot *nautilus_window_pane_open_slot  (NautilusWindowPane *pane,
 						     NautilusWindowOpenSlotFlags flags);
 void                nautilus_window_pane_close_slot (NautilusWindowPane *pane,
-						     NautilusWindowSlot *slot);
+						     NautilusWindowSlot *slot,
+						     gboolean            remove_from_notebook);
 
 void nautilus_window_pane_sync_location_widgets (NautilusWindowPane *pane);
 void nautilus_window_pane_sync_search_widgets  (NautilusWindowPane *pane);
