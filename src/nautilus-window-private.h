@@ -85,6 +85,9 @@ struct NautilusWindowDetails
         /* Toolbar */
         GtkWidget *toolbar;
 
+        /* Toolbar holder */
+        GtkWidget *toolbar_holder;
+
         /* focus widget before the location bar has been shown temporarily */
         GtkWidget *last_focus_widget;
         	

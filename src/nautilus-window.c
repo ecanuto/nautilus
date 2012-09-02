@@ -503,6 +503,7 @@ nautilus_window_constructed (GObject *self)
 	GtkWidget *menu;
 	GtkWidget *hpaned;
 	GtkWidget *vbox;
+	GtkWidget *toolbar_holder;
 	NautilusWindowPane *pane;
 	NautilusWindowSlot *slot;
 
@@ -528,6 +529,16 @@ nautilus_window_constructed (GObject *self)
 	gtk_widget_set_hexpand (menu, TRUE);
 	gtk_widget_show (menu);
 	gtk_container_add (GTK_CONTAINER (grid), menu);
+
+	/* Set up the toolbar place holder */
+	toolbar_holder = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_container_add (GTK_CONTAINER (grid), toolbar_holder);
+	gtk_widget_show (toolbar_holder);
+	window->details->toolbar_holder = toolbar_holder;
+
+	g_object_bind_property (window, "disable-chrome",
+				toolbar_holder, "visible",
+				G_BINDING_INVERT_BOOLEAN);
 
 	/* Register to menu provider extension signal managing menu updates */
 	g_signal_connect_object (nautilus_signaller_get_current (), "popup_menu_changed",
@@ -789,6 +800,10 @@ nautilus_window_close_pane (NautilusWindow *window,
 		window->details->active_pane = NULL;
 	}
 
+	/* Really required. Destroying the NautilusWindowPane still leaves behind the toolbar.
+	 * This kills it off. Do it before we call gtk_widget_destroy for safety. */
+	gtk_container_remove (GTK_CONTAINER (window->details->toolbar_holder), GTK_WIDGET (pane->tool_bar));
+
 	window->details->panes = g_list_remove (window->details->panes, pane);
 
 	gtk_widget_destroy (GTK_WIDGET (pane));
@@ -864,6 +879,9 @@ nautilus_window_set_active_slot (NautilusWindow *window, NautilusWindowSlot *new
 			nautilus_window_disconnect_content_view (window, old_slot->content_view);
 		}
 
+		/* hide inactive toolbar */
+		gtk_widget_hide (GTK_WIDGET (old_slot->pane->tool_bar));
+
 		/* inform slot & view */
 		g_signal_emit_by_name (old_slot, "inactive");
 	}
@@ -886,6 +904,9 @@ nautilus_window_set_active_slot (NautilusWindow *window, NautilusWindowSlot *new
                         /* inform window */
                         nautilus_window_connect_content_view (window, new_slot->content_view);
                 }
+
+		/* show active toolbar */
+		gtk_widget_show (GTK_WIDGET (new_slot->pane->tool_bar));
 
 		/* inform slot & view */
                 g_signal_emit_by_name (new_slot, "active");

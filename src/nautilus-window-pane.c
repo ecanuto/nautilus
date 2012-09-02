@@ -646,15 +646,15 @@ nautilus_window_pane_constructed (GObject *obj)
 	action_group = nautilus_window_create_toolbar_action_group (window);
 	pane->tool_bar = nautilus_toolbar_new (action_group);
 	pane->action_group = action_group;
-	gtk_widget_show (pane->tool_bar);
 
 	setup_search_action (pane);
 	g_signal_connect (pane->action_group, "pre-activate",
 			  G_CALLBACK (toolbar_action_group_activated_callback), pane);
 
-	gtk_box_pack_start (GTK_BOX (pane),
+	/* Pack to windows hbox under the menu */
+	gtk_box_pack_start (GTK_BOX (window->details->toolbar_holder),
 			    pane->tool_bar,
-			    FALSE, FALSE, 0);
+			    TRUE, TRUE, 0);
 
 	/* start as non-active */
 	nautilus_window_pane_set_active (pane, FALSE);
