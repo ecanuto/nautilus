@@ -84,6 +84,7 @@
 		<menu action="Bookmarks">
 			<menuitem name="Add Bookmark" action="Add Bookmark"/>
 			<menuitem name="Edit Bookmark" action="Edit Bookmarks"/>
+			<menuitem name="Go to Location" action="Go to Location"/>
 			<separator/>
 			<placeholder name="Bookmarks Placeholder"/>
 		</menu>
