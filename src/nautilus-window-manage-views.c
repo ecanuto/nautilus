@@ -37,6 +37,7 @@
 #include "nautilus-window-private.h"
 #include "nautilus-window-slot.h"
 #include "nautilus-trash-bar.h"
+#include "nautilus-toolbar.h"
 #include "nautilus-view-factory.h"
 #include "nautilus-x-content-bar.h"
 #include <eel/eel-accessibility.h>
@@ -314,10 +315,13 @@ viewed_file_changed_callback (NautilusFile *file,
 				 * in begin_location_change, but we don't want the
 				 * inexistant children to show up anymore */
 				if (slot == slot->pane->active_slot) {
+					GtkWidget *path_bar;
+
 					/* multiview-TODO also update NautilusWindowSlot
 					 * [which as of writing doesn't save/store any path bar state]
 					 */
-					nautilus_path_bar_clear_buttons (NAUTILUS_PATH_BAR (slot->pane->path_bar));
+					path_bar = nautilus_toolbar_get_path_bar (NAUTILUS_TOOLBAR (slot->pane->window->details->toolbar));
+					nautilus_path_bar_clear_buttons (NAUTILUS_PATH_BAR (path_bar));
 				}
 				
 				nautilus_window_slot_open_location (slot, go_to_file, 0);
@@ -336,7 +340,7 @@ viewed_file_changed_callback (NautilusFile *file,
                         g_object_unref (slot->location);
                         slot->location = new_location;
 			if (slot == slot->pane->active_slot) {
-				nautilus_window_pane_sync_location_widgets (slot->pane);
+				nautilus_window_sync_location_widgets (slot->pane->window);
 			}
                 } else {
 			/* TODO?
@@ -1421,10 +1425,10 @@ update_for_new_location (NautilusWindowSlot *slot)
 	nautilus_window_slot_update_icon (slot);
 
 	if (slot == slot->pane->active_slot) {
-		nautilus_window_pane_sync_location_widgets (slot->pane);
+		nautilus_window_sync_location_widgets (slot->pane->window);
 
 		if (location_really_changed) {
-			nautilus_window_pane_sync_search_widgets (slot->pane);
+			nautilus_window_sync_search_widgets (slot->pane->window);
 		}
 	}
 }

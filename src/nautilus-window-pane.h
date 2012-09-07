@@ -62,15 +62,6 @@ struct _NautilusWindowPane {
 	GList *slots;
 	NautilusWindowSlot *active_slot;
 
-	/* location bar */
-	GtkWidget *location_bar;
-	GtkWidget *path_bar;
-	GtkWidget *search_bar;
-	GtkWidget *tool_bar;
-
-	gboolean temporary_navigation_bar;
-	gboolean temporary_search_bar;
-
 	/* notebook */
 	GtkWidget *notebook;
 

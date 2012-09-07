@@ -84,9 +84,9 @@ struct NautilusWindowDetails
         
         /* Toolbar */
         GtkWidget *toolbar;
-
-        /* Toolbar holder */
-        GtkWidget *toolbar_holder;
+        GtkActionGroup *toolbar_action_group;
+        gboolean temporary_navigation_bar;
+        gboolean temporary_search_bar;
 
         /* focus widget before the location bar has been shown temporarily */
         GtkWidget *last_focus_widget;
@@ -139,7 +139,7 @@ void nautilus_window_sync_zoom_widgets     (NautilusWindow *window);
 void nautilus_window_sync_up_button        (NautilusWindow *window);
 
 /* window menus */
-GtkActionGroup *nautilus_window_create_toolbar_action_group (NautilusWindow *window);
+GtkActionGroup    *nautilus_window_create_toolbar_action_group           (NautilusWindow *window);
 void               nautilus_window_initialize_actions                    (NautilusWindow    *window);
 void               nautilus_window_initialize_menus                      (NautilusWindow    *window);
 void               nautilus_window_finalize_menus                        (NautilusWindow    *window);

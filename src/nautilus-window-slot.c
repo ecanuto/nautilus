@@ -27,6 +27,7 @@
 #include "nautilus-window-slot.h"
 
 #include "nautilus-desktop-window.h"
+#include "nautilus-toolbar.h"
 #include "nautilus-floating-bar.h"
 #include "nautilus-window-private.h"
 #include "nautilus-window-manage-views.h"
@@ -91,11 +92,14 @@ real_update_query_editor (NautilusWindowSlot *slot)
 
 		if (nautilus_search_directory_is_saved_search (search_directory)) {
 			query_editor = nautilus_query_editor_new (TRUE);
-			nautilus_window_pane_sync_search_widgets (slot->pane);
+			nautilus_window_sync_search_widgets (slot->pane->window);
 		} else {
+			GtkWidget *search_bar;
+
+			search_bar = nautilus_toolbar_get_search_bar (NAUTILUS_TOOLBAR (window->details->toolbar));
 			query_editor = nautilus_query_editor_new_with_bar (FALSE,
 									   slot_is_active,
-									   NAUTILUS_SEARCH_BAR (slot->pane->search_bar),
+									   NAUTILUS_SEARCH_BAR (search_bar),
 									   slot);
 		}
 	}
@@ -145,8 +149,8 @@ real_active (NautilusWindowSlot *slot)
 	nautilus_window_sync_allow_stop (window, slot);
 	nautilus_window_sync_title (window, slot);
 	nautilus_window_sync_zoom_widgets (window);
-	nautilus_window_pane_sync_location_widgets (slot->pane);
-	nautilus_window_pane_sync_search_widgets (slot->pane);
+	nautilus_window_sync_location_widgets (window);
+	nautilus_window_sync_search_widgets (window);
 
 	if (slot->viewed_file != NULL) {
 		nautilus_window_load_view_as_menus (window);

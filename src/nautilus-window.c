@@ -37,7 +37,9 @@
 #include "nautilus-mime-actions.h"
 #include "nautilus-notebook.h"
 #include "nautilus-places-sidebar.h"
+#include "nautilus-pathbar.h"
 #include "nautilus-search-bar.h"
+#include "nautilus-toolbar.h"
 #include "nautilus-tree-sidebar.h"
 #include "nautilus-view-factory.h"
 #include "nautilus-window-manage-views.h"
@@ -170,6 +172,212 @@ nautilus_window_go_up_signal (NautilusWindow *window)
 	nautilus_window_slot_go_up (nautilus_window_get_active_slot (window), 0);
 }
 
+static int
+bookmark_list_get_uri_index (GList *list, GFile *location)
+{
+	NautilusBookmark *bookmark;
+	GList *l;
+	GFile *tmp;
+	int i;
+
+	g_return_val_if_fail (location != NULL, -1);
+
+	for (i = 0, l = list; l != NULL; i++, l = l->next) {
+		bookmark = NAUTILUS_BOOKMARK (l->data);
+
+		tmp = nautilus_bookmark_get_location (bookmark);
+		if (g_file_equal (location, tmp)) {
+			g_object_unref (tmp);
+			return i;
+		}
+		g_object_unref (tmp);
+	}
+
+	return -1;
+}
+
+static void
+search_bar_activate_callback (NautilusSearchBar *bar,
+			      NautilusWindow    *window)
+{
+	char *uri, *current_uri;
+	NautilusDirectory *directory;
+	NautilusSearchDirectory *search_directory;
+	NautilusQuery *query;
+	GFile *location;
+	GtkWidget *search_bar;
+
+	uri = nautilus_search_directory_generate_new_uri ();
+	location = g_file_new_for_uri (uri);
+
+	directory = nautilus_directory_get (location);
+	g_assert (NAUTILUS_IS_SEARCH_DIRECTORY (directory));
+
+	search_directory = NAUTILUS_SEARCH_DIRECTORY (directory);
+
+	search_bar = nautilus_toolbar_get_search_bar (NAUTILUS_TOOLBAR (window->details->toolbar));
+
+	query = nautilus_search_bar_get_query (NAUTILUS_SEARCH_BAR (search_bar));
+
+	if (query != NULL) {
+		current_uri = nautilus_window_slot_get_location_uri (window->details->active_pane->active_slot);
+
+		nautilus_query_set_location (query, current_uri);
+		nautilus_search_directory_set_query (search_directory, query);
+
+		g_free (current_uri);
+		g_object_unref (query);
+	}
+
+	nautilus_window_slot_open_location (window->details->active_pane->active_slot, location, 0);
+
+	nautilus_directory_unref (directory);
+	g_object_unref (location);
+	g_free (uri);
+}
+
+static void
+nautilus_window_hide_temporary_bars (NautilusWindow *window)
+{
+	NautilusWindowSlot *slot;
+	NautilusDirectory *directory;
+
+	slot = window->details->active_pane->active_slot;
+
+	if (window->details->temporary_navigation_bar) {
+		directory = nautilus_directory_get (slot->location);
+
+		window->details->temporary_navigation_bar = FALSE;
+
+		/* if we're in a search directory, hide the main bar, and show the search
+		 * bar again; otherwise, just hide the whole toolbar.
+		 */
+		if (NAUTILUS_IS_SEARCH_DIRECTORY (directory)) {
+			nautilus_toolbar_set_show_main_bar (NAUTILUS_TOOLBAR (window->details->toolbar), FALSE);
+			nautilus_toolbar_set_show_search_bar (NAUTILUS_TOOLBAR (window->details->toolbar), TRUE);
+		} else {
+			gtk_widget_hide (window->details->toolbar);
+		}
+
+		nautilus_directory_unref (directory);
+	}
+}
+
+static void
+search_bar_cancel_callback (GtkWidget      *widget,
+			    NautilusWindow *window)
+{
+	GtkAction *search;
+
+	search = gtk_action_group_get_action (window->details->toolbar_action_group,
+					      NAUTILUS_ACTION_SEARCH);
+
+	gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (search), FALSE);
+}
+
+static void
+unset_focus_widget (NautilusWindow *window)
+{
+	if (window->details->last_focus_widget != NULL) {
+		g_object_remove_weak_pointer (G_OBJECT (window->details->last_focus_widget),
+					      (gpointer *) &window->details->last_focus_widget);
+		window->details->last_focus_widget = NULL;
+	}
+}
+
+static gboolean
+widget_is_in_temporary_bars (GtkWidget      *widget,
+			     NautilusWindow *window)
+{
+	gboolean res = FALSE;
+
+	if ((gtk_widget_get_ancestor (widget, NAUTILUS_TYPE_LOCATION_BAR) != NULL &&
+	     window->details->temporary_navigation_bar) ||
+	    (gtk_widget_get_ancestor (widget, NAUTILUS_TYPE_SEARCH_BAR) != NULL &&
+	     window->details->temporary_search_bar))
+		res = TRUE;
+
+	return res;
+}
+
+static void
+remember_focus_widget (NautilusWindow *window)
+{
+	GtkWidget *focus_widget;
+
+	focus_widget = gtk_window_get_focus (GTK_WINDOW (window));
+	if (focus_widget != NULL &&
+	    !widget_is_in_temporary_bars (focus_widget, window)) {
+		unset_focus_widget (window);
+
+		window->details->last_focus_widget = focus_widget;
+		g_object_add_weak_pointer (G_OBJECT (focus_widget),
+					   (gpointer *) &(window->details->last_focus_widget));
+	}
+}
+
+static void
+restore_focus_widget (NautilusWindow *window)
+{
+	if (window->details->last_focus_widget != NULL) {
+		if (NAUTILUS_IS_VIEW (window->details->last_focus_widget)) {
+			nautilus_view_grab_focus (NAUTILUS_VIEW (window->details->last_focus_widget));
+		} else {
+			gtk_widget_grab_focus (window->details->last_focus_widget);
+		}
+
+		unset_focus_widget (window);
+	}
+}
+
+static void
+navigation_bar_cancel_callback (GtkWidget      *widget,
+				NautilusWindow *window)
+{
+	nautilus_toolbar_set_show_location_entry (NAUTILUS_TOOLBAR (window->details->toolbar), FALSE);
+
+	nautilus_window_hide_temporary_bars (window);
+	restore_focus_widget (window);
+}
+
+static void
+nautilus_window_ensure_search_bar (NautilusWindow *window)
+{
+	GtkWidget *search_bar;
+
+	remember_focus_widget (window);
+	nautilus_toolbar_set_show_search_bar (NAUTILUS_TOOLBAR (window->details->toolbar), TRUE);
+	search_bar = nautilus_toolbar_get_search_bar (NAUTILUS_TOOLBAR (window->details->toolbar));
+	nautilus_search_bar_grab_focus (NAUTILUS_SEARCH_BAR (search_bar));
+}
+
+static void
+nautilus_window_hide_search_bar (NautilusWindow *window)
+{
+	nautilus_toolbar_set_show_search_bar (NAUTILUS_TOOLBAR (window->details->toolbar), FALSE);
+	restore_focus_widget (window);
+
+	if (window->details->temporary_search_bar) {
+		window->details->temporary_search_bar = FALSE;
+
+		gtk_widget_hide (window->details->toolbar);
+	}
+}
+
+static void
+navigation_bar_location_changed_callback (GtkWidget      *widget,
+					  GFile          *location,
+					  NautilusWindow *window)
+{
+	nautilus_toolbar_set_show_location_entry (NAUTILUS_TOOLBAR (window->details->toolbar), FALSE);
+	nautilus_window_hide_search_bar (window);
+	nautilus_window_hide_temporary_bars (window);
+
+	restore_focus_widget (window);
+
+	nautilus_window_slot_open_location (window->details->active_pane->active_slot, location, 0);
+}
+
 void
 nautilus_window_new_tab (NautilusWindow *window)
 {
@@ -202,6 +410,47 @@ nautilus_window_new_tab (NautilusWindow *window)
 		nautilus_window_set_active_slot (window, new_slot);
 		nautilus_window_slot_open_location (new_slot, location, 0);
 		g_object_unref (location);
+	}
+}
+
+static void
+action_show_hide_search_callback (GtkAction *action,
+				  gpointer user_data)
+{
+	NautilusWindow *window = user_data;
+
+	if (gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action))) {
+		nautilus_window_ensure_search_bar (window);
+	} else {
+		NautilusWindowSlot *slot;
+		GFile *location = NULL;
+
+		slot = window->details->active_pane->active_slot;
+		nautilus_window_hide_search_bar (window);
+
+		/* Use the location bar as the return location */
+		if (slot->query_editor != NULL) {
+			NautilusQuery *query;
+			char *uri;
+
+			query = nautilus_query_editor_get_query (slot->query_editor);
+			if (query != NULL) {
+				uri = nautilus_query_get_location (query);
+				if (uri != NULL) {
+					location = g_file_new_for_uri (uri);
+					g_free (uri);
+				}
+				g_object_unref (query);
+			}
+
+			/* Last try: use the home directory as the return location */
+			if (location == NULL) {
+				location = g_file_new_for_path (g_get_home_dir ());
+			}
+
+			nautilus_window_go_to (window, location);
+			g_object_unref (location);
+		}
 	}
 }
 
@@ -255,16 +504,15 @@ nautilus_window_sync_allow_stop (NautilusWindow *window,
 static void
 nautilus_window_prompt_for_location (NautilusWindow *window,
 				     const char     *initial)
-{	
-	NautilusWindowPane *pane;
+{
+	GtkWidget *bar;
 
 	g_return_if_fail (NAUTILUS_IS_WINDOW (window));
 
-	pane = window->details->active_pane;
-	nautilus_window_pane_ensure_location_bar (pane);
+	bar = nautilus_window_ensure_location_bar (window);
 
 	if (initial) {
-		nautilus_location_bar_set_location (NAUTILUS_LOCATION_BAR (pane->location_bar),
+		nautilus_location_bar_set_location (NAUTILUS_LOCATION_BAR (bar),
 						    initial);
 	}
 }
@@ -496,6 +744,225 @@ nautilus_window_disable_chrome_mapping (GValue *value,
 }
 
 static void
+toggle_toolbar_search_button (NautilusWindow *window)
+{
+	GtkAction *action;
+
+	action = gtk_action_group_get_action (window->details->toolbar_action_group, NAUTILUS_ACTION_SEARCH);
+
+	g_signal_handlers_block_by_func (action,
+					 action_show_hide_search_callback, window);
+	gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), TRUE);
+	g_signal_handlers_unblock_by_func (action,
+					   action_show_hide_search_callback, window);
+}
+
+void
+nautilus_window_sync_search_widgets (NautilusWindow *window)
+{
+	NautilusDirectory *directory;
+	NautilusSearchDirectory *search_directory;
+
+	search_directory = NULL;
+
+	directory = nautilus_directory_get (window->details->active_pane->active_slot->location);
+	if (NAUTILUS_IS_SEARCH_DIRECTORY (directory)) {
+		search_directory = NAUTILUS_SEARCH_DIRECTORY (directory);
+	}
+
+	if (search_directory != NULL) {
+		if (!nautilus_search_directory_is_saved_search (search_directory)) {
+			nautilus_toolbar_set_show_search_bar (NAUTILUS_TOOLBAR (window->details->toolbar), TRUE);
+			window->details->temporary_search_bar = FALSE;
+		} else {
+			toggle_toolbar_search_button (window);
+		}
+	} else {
+		GtkWidget *search_bar;
+
+		search_bar = nautilus_toolbar_get_search_bar (NAUTILUS_TOOLBAR (window->details->toolbar));
+		search_bar_cancel_callback (search_bar, window);
+	}
+
+	nautilus_directory_unref (directory);
+}
+
+void
+nautilus_window_sync_location_widgets (NautilusWindow *window)
+{
+	NautilusWindowSlot *slot, *active_slot;
+	NautilusNavigationState *nav_state;
+
+	slot = window->details->active_pane->active_slot;
+
+	nautilus_window_hide_temporary_bars (window);
+
+	/* Change the location bar and path bar to match the current location. */
+	if (slot->location != NULL) {
+		char *uri;
+		GtkWidget *location_bar;
+		GtkWidget *path_bar;
+
+		location_bar = nautilus_toolbar_get_location_bar (NAUTILUS_TOOLBAR (window->details->toolbar));
+		path_bar = nautilus_toolbar_get_path_bar (NAUTILUS_TOOLBAR (window->details->toolbar));
+
+		/* this may be NULL if we just created the slot */
+		uri = nautilus_window_slot_get_location_uri (slot);
+		nautilus_location_bar_set_location (NAUTILUS_LOCATION_BAR (location_bar), uri);
+		g_free (uri);
+		nautilus_path_bar_set_path (NAUTILUS_PATH_BAR (path_bar), slot->location);
+	}
+
+	nautilus_window_sync_up_button (window);
+
+	/* Check if the back and forward buttons need enabling or disabling. */
+	active_slot = nautilus_window_get_active_slot (window);
+	nav_state = nautilus_window_get_navigation_state (window);
+
+	nautilus_navigation_state_set_boolean (nav_state,
+					       NAUTILUS_ACTION_BACK,
+					       active_slot->back_list != NULL);
+	nautilus_navigation_state_set_boolean (nav_state,
+					       NAUTILUS_ACTION_FORWARD,
+					       active_slot->forward_list != NULL);
+}
+
+GtkWidget *
+nautilus_window_ensure_location_bar (NautilusWindow *window)
+{
+	GtkWidget *location_bar;
+
+	remember_focus_widget (window);
+
+	nautilus_toolbar_set_show_main_bar (NAUTILUS_TOOLBAR (window->details->toolbar), TRUE);
+	nautilus_toolbar_set_show_location_entry (NAUTILUS_TOOLBAR (window->details->toolbar), TRUE);
+
+	location_bar = nautilus_toolbar_get_location_bar (NAUTILUS_TOOLBAR (window->details->toolbar));
+	nautilus_location_bar_activate (NAUTILUS_LOCATION_BAR (location_bar));
+
+	return location_bar;
+}
+
+static void
+path_bar_location_changed_callback (GtkWidget      *widget,
+				    GFile          *location,
+				    NautilusWindow *window)
+{
+	NautilusWindowSlot *slot;
+	int i;
+
+	slot = window->details->active_pane->active_slot;
+	/* check whether we already visited the target location */
+	i = bookmark_list_get_uri_index (slot->back_list, location);
+	if (i >= 0) {
+		nautilus_window_back_or_forward (window, TRUE, i, 0);
+	} else {
+		nautilus_window_slot_open_location (slot, location, 0);
+	}
+}
+
+static void
+path_bar_path_event_callback (NautilusPathBar *path_bar,
+			      GFile           *location,
+			      GdkEventButton  *event,
+			      NautilusWindow  *window)
+{
+	NautilusWindowSlot *slot;
+	NautilusWindowOpenFlags flags;
+	int mask;
+	NautilusView *view;
+	char *uri;
+
+	if (event->type == GDK_BUTTON_RELEASE) {
+		mask = event->state & gtk_accelerator_get_default_mod_mask ();
+		flags = 0;
+
+		if (event->button == 2 && mask == 0) {
+			flags = NAUTILUS_WINDOW_OPEN_FLAG_NEW_TAB;
+		} else if (event->button == 1 && mask == GDK_CONTROL_MASK) {
+			flags = NAUTILUS_WINDOW_OPEN_FLAG_NEW_WINDOW;
+		}
+
+		if (flags != 0) {
+			slot = nautilus_window_get_active_slot (window);
+			nautilus_window_slot_open_location (slot, location, flags);
+		}
+	} else if (event->button == 3) {
+		slot = nautilus_window_get_active_slot (window);
+		view = slot->content_view;
+		if (view != NULL) {
+			uri = g_file_get_uri (location);
+			nautilus_view_pop_up_location_context_menu (view, event, uri);
+			g_free (uri);
+		}
+	}
+}
+
+static GtkWidget *
+create_toolbar (NautilusWindow *window)
+{
+	GtkSizeGroup *header_size_group;
+	GtkActionGroup *action_group;
+	GtkAction *action;
+	GtkWidget *toolbar;
+	GtkWidget *path_bar;
+	GtkWidget *location_bar;
+	GtkWidget *search_bar;
+
+	header_size_group = gtk_size_group_new (GTK_SIZE_GROUP_VERTICAL);
+	gtk_size_group_set_ignore_hidden (header_size_group, FALSE);
+
+	/* build the toolbar */
+	action_group = nautilus_window_create_toolbar_action_group (window);
+	window->details->toolbar_action_group = action_group;
+	action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_SEARCH);
+	g_signal_connect (action, "activate",
+			  G_CALLBACK (action_show_hide_search_callback), window);
+	nautilus_navigation_state_set_master (window->details->nav_state, window->details->toolbar_action_group );
+
+	toolbar = nautilus_toolbar_new (action_group);
+
+	g_object_bind_property (window, "disable-chrome",
+				toolbar, "visible",
+				G_BINDING_INVERT_BOOLEAN);
+
+	/* connect to the pathbar signals */
+	path_bar = nautilus_toolbar_get_path_bar (NAUTILUS_TOOLBAR (toolbar));
+	gtk_size_group_add_widget (header_size_group, path_bar);
+
+	g_signal_connect_object (path_bar, "path-clicked",
+				 G_CALLBACK (path_bar_location_changed_callback), window, 0);
+	g_signal_connect_object (path_bar, "path-event",
+				 G_CALLBACK (path_bar_path_event_callback), window, 0);
+
+	/* connect to the location bar signals */
+	location_bar = nautilus_toolbar_get_location_bar (NAUTILUS_TOOLBAR (toolbar));
+	gtk_size_group_add_widget (header_size_group, location_bar);
+
+	nautilus_clipboard_set_up_editable
+		(GTK_EDITABLE (nautilus_location_bar_get_entry (NAUTILUS_LOCATION_BAR (location_bar))),
+		 nautilus_window_get_ui_manager (NAUTILUS_WINDOW (window)),
+		 TRUE);
+
+	g_signal_connect_object (location_bar, "location-changed",
+				 G_CALLBACK (navigation_bar_location_changed_callback), window, 0);
+	g_signal_connect_object (location_bar, "cancel",
+				 G_CALLBACK (navigation_bar_cancel_callback), window, 0);
+
+	/* connect to the search bar signals */
+	search_bar = nautilus_toolbar_get_search_bar (NAUTILUS_TOOLBAR (toolbar));
+
+	g_signal_connect_object (search_bar, "activate",
+				 G_CALLBACK (search_bar_activate_callback), window, 0);
+	g_signal_connect_object (search_bar, "cancel",
+				 G_CALLBACK (search_bar_cancel_callback), window, 0);
+
+	g_object_unref (header_size_group);
+
+	return toolbar;
+}
+
+static void
 nautilus_window_constructed (GObject *self)
 {
 	NautilusWindow *window;
@@ -503,7 +970,6 @@ nautilus_window_constructed (GObject *self)
 	GtkWidget *menu;
 	GtkWidget *hpaned;
 	GtkWidget *vbox;
-	GtkWidget *toolbar_holder;
 	NautilusWindowPane *pane;
 	NautilusWindowSlot *slot;
 
@@ -530,19 +996,14 @@ nautilus_window_constructed (GObject *self)
 	gtk_widget_show (menu);
 	gtk_container_add (GTK_CONTAINER (grid), menu);
 
-	/* Set up the toolbar place holder */
-	toolbar_holder = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-	gtk_container_add (GTK_CONTAINER (grid), toolbar_holder);
-	gtk_widget_show (toolbar_holder);
-	window->details->toolbar_holder = toolbar_holder;
-
-	g_object_bind_property (window, "disable-chrome",
-				toolbar_holder, "visible",
-				G_BINDING_INVERT_BOOLEAN);
-
 	/* Register to menu provider extension signal managing menu updates */
 	g_signal_connect_object (nautilus_signaller_get_current (), "popup_menu_changed",
 			 G_CALLBACK (nautilus_window_load_extension_menus), window, G_CONNECT_SWAPPED);
+	window->details->toolbar = create_toolbar (window);
+	gtk_container_add (GTK_CONTAINER (grid), window->details->toolbar);
+	gtk_widget_set_hexpand (window->details->toolbar, TRUE);
+	gtk_widget_set_vexpand (window->details->toolbar, FALSE);
+	gtk_widget_show (window->details->toolbar);
 
 	window->details->content_paned = gtk_paned_new (GTK_ORIENTATION_HORIZONTAL);
 	gtk_widget_set_hexpand (window->details->content_paned, TRUE);
@@ -800,10 +1261,6 @@ nautilus_window_close_pane (NautilusWindow *window,
 		window->details->active_pane = NULL;
 	}
 
-	/* Really required. Destroying the NautilusWindowPane still leaves behind the toolbar.
-	 * This kills it off. Do it before we call gtk_widget_destroy for safety. */
-	gtk_container_remove (GTK_CONTAINER (window->details->toolbar_holder), GTK_WIDGET (pane->tool_bar));
-
 	window->details->panes = g_list_remove (window->details->panes, pane);
 
 	gtk_widget_destroy (GTK_WIDGET (pane));
@@ -879,9 +1336,6 @@ nautilus_window_set_active_slot (NautilusWindow *window, NautilusWindowSlot *new
 			nautilus_window_disconnect_content_view (window, old_slot->content_view);
 		}
 
-		/* hide inactive toolbar */
-		gtk_widget_hide (GTK_WIDGET (old_slot->pane->tool_bar));
-
 		/* inform slot & view */
 		g_signal_emit_by_name (old_slot, "inactive");
 	}
@@ -904,9 +1358,6 @@ nautilus_window_set_active_slot (NautilusWindow *window, NautilusWindowSlot *new
                         /* inform window */
                         nautilus_window_connect_content_view (window, new_slot->content_view);
                 }
-
-		/* show active toolbar */
-		gtk_widget_show (GTK_WIDGET (new_slot->pane->tool_bar));
 
 		/* inform slot & view */
                 g_signal_emit_by_name (new_slot, "active");
@@ -1136,8 +1587,8 @@ nautilus_window_sync_view_as_menus (NautilusWindow *window)
 	NautilusWindowSlot *slot;
 	int index;
 	char action_name[32];
-	GList *node;
 	GtkAction *action;
+	GList *node;
 
 	g_assert (NAUTILUS_IS_WINDOW (window));
 
@@ -1146,6 +1597,7 @@ nautilus_window_sync_view_as_menus (NautilusWindow *window)
 	if (slot->content_view == NULL) {
 		return;
 	}
+
 	for (node = window->details->short_list_viewers, index = 1;
 	     node != NULL;
 	     node = node->next, ++index) {
@@ -1213,7 +1665,6 @@ load_view_as_menu (NautilusWindow *window)
 		window->details->view_as_action_group = NULL;
 	}
 
-	
 	refresh_stored_viewers (window);
 
 	merge_id = gtk_ui_manager_new_merge_id (window->details->ui_manager);
@@ -2046,6 +2497,7 @@ nautilus_window_show_about_dialog (NautilusWindow *window)
 		"Seth Nickell",
 		"Susan Kare",
 		"Tomas Bzatek",
+		"William Jon McCann",
 		NULL
 	};
 	const gchar *documenters[] = {

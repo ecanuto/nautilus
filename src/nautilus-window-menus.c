@@ -597,10 +597,7 @@ action_go_to_location_callback (GtkAction *action,
 				gpointer user_data)
 {
 	NautilusWindow *window = user_data;
-	NautilusWindowPane *pane;
-
-	pane = nautilus_window_get_active_pane (window);
-	nautilus_window_pane_ensure_location_bar (pane);
+	nautilus_window_ensure_location_bar (window);
 }
 
 static void
