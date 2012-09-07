@@ -578,6 +578,42 @@ update_places (NautilusPlacesSidebar *sidebar)
 		   _("Open the trash"));
 	g_object_unref (icon);
 
+	/* add bookmarks */
+	bookmark_count = nautilus_bookmark_list_length (sidebar->bookmarks);
+
+	for (index = 0; index < bookmark_count; ++index) {
+		bookmark = nautilus_bookmark_list_item_at (sidebar->bookmarks, index);
+
+		if (nautilus_bookmark_uri_known_not_to_exist (bookmark)) {
+			continue;
+		}
+
+		root = nautilus_bookmark_get_location (bookmark);
+		file = nautilus_file_get (root);
+
+		if (is_built_in_bookmark (file)) {
+			g_object_unref (root);
+			nautilus_file_unref (file);
+			continue;
+		}
+		nautilus_file_unref (file);
+
+		bookmark_name = nautilus_bookmark_get_name (bookmark);
+		icon = nautilus_bookmark_get_icon (bookmark);
+		mount_uri = nautilus_bookmark_get_uri (bookmark);
+		tooltip = g_file_get_parse_name (root);
+
+		add_place (sidebar, PLACES_BOOKMARK,
+			   SECTION_BOOKMARKS,
+			   bookmark_name, icon, mount_uri,
+			   NULL, NULL, NULL, index,
+			   tooltip);
+		g_object_unref (root);
+		g_object_unref (icon);
+		g_free (mount_uri);
+		g_free (tooltip);
+	}
+
 	/* go through all connected drives */
 	drives = g_volume_monitor_get_connected_drives (volume_monitor);
 
@@ -729,42 +765,6 @@ update_places (NautilusPlacesSidebar *sidebar)
 		   mount_uri, NULL, NULL, NULL, 0,
 		   _("Open the contents of the File System"));
 	g_object_unref (icon);
-
-	/* add bookmarks */
-	bookmark_count = nautilus_bookmark_list_length (sidebar->bookmarks);
-
-	for (index = 0; index < bookmark_count; ++index) {
-		bookmark = nautilus_bookmark_list_item_at (sidebar->bookmarks, index);
-
-		if (nautilus_bookmark_uri_known_not_to_exist (bookmark)) {
-			continue;
-		}
-
-		root = nautilus_bookmark_get_location (bookmark);
-		file = nautilus_file_get (root);
-
-		if (is_built_in_bookmark (file)) {
-			g_object_unref (root);
-			nautilus_file_unref (file);
-			continue;
-		}
-		nautilus_file_unref (file);
-
-		bookmark_name = nautilus_bookmark_get_name (bookmark);
-		icon = nautilus_bookmark_get_icon (bookmark);
-		mount_uri = nautilus_bookmark_get_uri (bookmark);
-		tooltip = g_file_get_parse_name (root);
-
-		add_place (sidebar, PLACES_BOOKMARK,
-			   SECTION_BOOKMARKS,
-			   bookmark_name, icon, mount_uri,
-			   NULL, NULL, NULL, index,
-			   tooltip);
-		g_object_unref (root);
-		g_object_unref (icon);
-		g_free (mount_uri);
-		g_free (tooltip);
-	}
 
 	/* add mounts that has no volume (/etc/mtab mounts, ftp, sftp,...) */
 	mounts = g_volume_monitor_get_mounts (volume_monitor);
