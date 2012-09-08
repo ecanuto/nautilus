@@ -221,6 +221,14 @@ remember_focus_widget (NautilusWindow *window)
 	}
 }
 
+void
+nautilus_window_grab_focus (NautilusWindow *window)
+{
+	if (NAUTILUS_IS_WINDOW (window) && window->details->active_pane->active_slot) {
+		nautilus_view_grab_focus (window->details->active_pane->active_slot->content_view);
+	}
+}
+
 static void
 restore_focus_widget (NautilusWindow *window)
 {
