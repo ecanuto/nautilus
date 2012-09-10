@@ -206,6 +206,8 @@ nautilus_toolbar_constructed (GObject *obj)
 
 	tool_button = toolbar_create_toolbutton (self, FALSE, TRUE, NAUTILUS_ACTION_VIEW_LIST);
 	gtk_container_add (GTK_CONTAINER (box), GTK_WIDGET (tool_button));
+	tool_button = toolbar_create_toolbutton (self, FALSE, TRUE, NAUTILUS_ACTION_VIEW_COMPACT);
+	gtk_container_add (GTK_CONTAINER (box), GTK_WIDGET (tool_button));
 	tool_button = toolbar_create_toolbutton (self, FALSE, TRUE, NAUTILUS_ACTION_VIEW_GRID);
 	gtk_container_add (GTK_CONTAINER (box), GTK_WIDGET (tool_button));
 

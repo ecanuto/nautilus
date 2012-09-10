@@ -776,6 +776,20 @@ action_view_list_changed_cb (GtkRadioAction *action,
 }
 
 static void
+action_view_compact_changed_cb (GtkRadioAction *action,
+			     GtkRadioAction *current,
+                             NautilusWindow *window)
+{
+	NautilusWindowSlot *slot;
+
+	if (action != current)
+		return;
+
+	slot = nautilus_window_get_active_slot (window);
+	nautilus_window_slot_set_content_view (slot, FM_COMPACT_VIEW_ID);
+}
+
+static void
 action_view_grid_changed_cb (GtkRadioAction *action,
 			     GtkRadioAction *current,
                              NautilusWindow *window)
@@ -811,6 +825,9 @@ create_toolbar (NautilusWindow *window)
 	action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_VIEW_LIST);
 	g_signal_connect (action, "changed",
 			  G_CALLBACK (action_view_list_changed_cb), window);
+	action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_VIEW_COMPACT);
+	g_signal_connect (action, "changed",
+			  G_CALLBACK (action_view_compact_changed_cb), window);
 	action = gtk_action_group_get_action (action_group, NAUTILUS_ACTION_VIEW_GRID);
 	g_signal_connect (action, "changed",
 			  G_CALLBACK (action_view_grid_changed_cb), window);
@@ -1378,6 +1395,8 @@ nautilus_window_sync_view_as_menus (NautilusWindow *window)
 
 	if (nautilus_window_slot_content_view_matches_iid (slot, NAUTILUS_LIST_VIEW_ID)) {
 		action = gtk_action_group_get_action (window->details->toolbar_action_group, NAUTILUS_ACTION_VIEW_LIST);
+	} else if (nautilus_window_slot_content_view_matches_iid (slot, FM_COMPACT_VIEW_ID)) {
+		action = gtk_action_group_get_action (window->details->toolbar_action_group, NAUTILUS_ACTION_VIEW_COMPACT);
 	} else {
 		action = gtk_action_group_get_action (window->details->toolbar_action_group, NAUTILUS_ACTION_VIEW_GRID);
 	}
@@ -1393,6 +1412,12 @@ nautilus_window_sync_view_as_menus (NautilusWindow *window)
 					 G_SIGNAL_MATCH_FUNC,
 					 0, 0,
 					 NULL,
+					 action_view_compact_changed_cb,
+					 NULL);
+	g_signal_handlers_block_matched (action,
+					 G_SIGNAL_MATCH_FUNC,
+					 0, 0,
+					 NULL,
 					 action_view_grid_changed_cb,
 					 NULL);
 	gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), TRUE);
@@ -1401,6 +1426,12 @@ nautilus_window_sync_view_as_menus (NautilusWindow *window)
 					   0, 0,
 					   NULL,
 					   action_view_list_changed_cb,
+					   NULL);
+	g_signal_handlers_unblock_matched (action,
+					   G_SIGNAL_MATCH_FUNC,
+					   0, 0,
+					   NULL,
+					   action_view_compact_changed_cb,
 					   NULL);
 	g_signal_handlers_unblock_matched (action,
 					   G_SIGNAL_MATCH_FUNC,
