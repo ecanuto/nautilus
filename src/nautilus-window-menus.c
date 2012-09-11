@@ -724,7 +724,8 @@ static const GtkActionEntry main_entries[] = {
     G_CALLBACK (action_tabs_move_left_callback) },
   { "TabsMoveRight", NULL, N_("Move Tab _Right"), "<shift><control>Page_Down",
     N_("Move current tab to right"),
-    G_CALLBACK (action_tabs_move_right_callback) }
+    G_CALLBACK (action_tabs_move_right_callback) },
+  { "Sidebar List", NULL, N_("Sidebar") }
 };
 
 static const GtkToggleActionEntry main_toggle_entries[] = {
