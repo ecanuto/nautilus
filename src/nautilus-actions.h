@@ -91,6 +91,8 @@
 #define NAUTILUS_ACTION_DUPLICATE "Duplicate"
 #define NAUTILUS_ACTION_CREATE_LINK "Create Link"
 #define NAUTILUS_ACTION_SET_AS_WALLPAPER "Set As Wallpaper"
+#define NAUTILUS_ACTION_COPY_TO "CopyToMenu"
+#define NAUTILUS_ACTION_MOVE_TO "MoveToMenu"
 #define NAUTILUS_ACTION_SELECT_ALL "Select All"
 #define NAUTILUS_ACTION_INVERT_SELECTION "Invert Selection"
 #define NAUTILUS_ACTION_SELECT_PATTERN "Select Pattern"
