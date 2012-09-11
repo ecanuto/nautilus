@@ -7239,6 +7239,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("New Folder with Selection"), NULL,
   /* tooltip */                  N_("Create a new folder containing the selected items"),
 				 G_CALLBACK (action_new_folder_with_selection_callback) },
+  /* name, stock id, label */  { NAUTILUS_ACTION_NO_TEMPLATES, NULL, N_("No templates installed") },
   /* name, stock id */         { NAUTILUS_ACTION_NEW_EMPTY_DOCUMENT, NULL,
     /* translators: this is used to indicate that a document doesn't contain anything */
   /* label, accelerator */       N_("_Empty Document"), NULL,
