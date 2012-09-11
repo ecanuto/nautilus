@@ -346,7 +346,6 @@ nautilus_window_sync_allow_stop (NautilusWindow *window,
 	GtkAction *stop_action;
 	GtkAction *reload_action;
 	gboolean allow_stop, slot_is_active;
-	NautilusNotebook *notebook;
 
 	stop_action = gtk_action_group_get_action (nautilus_window_get_main_action_group (window),
 						   NAUTILUS_ACTION_STOP);
@@ -367,9 +366,7 @@ nautilus_window_sync_allow_stop (NautilusWindow *window,
 			update_cursor (window);
 		}
 
-
-		notebook = NAUTILUS_NOTEBOOK (slot->pane->notebook);
-		nautilus_notebook_sync_loading (notebook, slot);
+		nautilus_notebook_sync_loading (NAUTILUS_NOTEBOOK (slot->pane->notebook), slot);
 	}
 }
 
@@ -497,8 +494,6 @@ static void
 nautilus_window_set_up_sidebar (NautilusWindow *window)
 {
 	GtkWidget *sidebar;
-
-	DEBUG ("Setting up sidebar id %s", window->details->sidebar_id);
 
 	window->details->sidebar = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
 	gtk_style_context_add_class (gtk_widget_get_style_context (window->details->sidebar),
@@ -657,7 +652,7 @@ nautilus_window_sync_location_widgets (NautilusWindow *window)
 {
 	NautilusWindowSlot *slot, *active_slot;
 	GtkActionGroup *action_group;
-	GtkAction *action;;
+	GtkAction *action;
 
 	slot = window->details->active_pane->active_slot;
 
@@ -986,7 +981,7 @@ nautilus_window_finalize (GObject *object)
 
 void
 nautilus_window_view_visible (NautilusWindow *window,
-			      NautilusView *view)
+			      NautilusView   *view)
 {
 	NautilusWindowSlot *slot;
 	NautilusWindowPane *pane;
@@ -1375,9 +1370,6 @@ void
 nautilus_window_sync_title (NautilusWindow *window,
 			    NautilusWindowSlot *slot)
 {
-	NautilusWindowPane *pane;
-	NautilusNotebook *notebook;
-
 	if (NAUTILUS_WINDOW_CLASS (G_OBJECT_GET_CLASS (window))->sync_title != NULL) {
 		NAUTILUS_WINDOW_CLASS (G_OBJECT_GET_CLASS (window))->sync_title (window, slot);
 
@@ -1388,9 +1380,7 @@ nautilus_window_sync_title (NautilusWindow *window,
 		gtk_window_set_title (GTK_WINDOW (window), slot->title);
 	}
 
-	pane = slot->pane;
-	notebook = NAUTILUS_NOTEBOOK (pane->notebook);
-	nautilus_notebook_sync_tab_label (notebook, slot);
+	nautilus_notebook_sync_tab_label (NAUTILUS_NOTEBOOK (slot->pane->notebook), slot);
 }
 
 void

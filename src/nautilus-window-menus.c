@@ -346,17 +346,17 @@ action_split_view_same_location_callback (GtkAction *action,
 
 static void
 action_show_hide_sidebar_callback (GtkAction *action, 
-				   gpointer user_data)
+                                  gpointer user_data)
 {
-	NautilusWindow *window;
+       NautilusWindow *window;
 
-	window = NAUTILUS_WINDOW (user_data);
+       window = NAUTILUS_WINDOW (user_data);
 
-	if (gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action))) {
-		nautilus_window_show_sidebar (window);
-	} else {
-		nautilus_window_hide_sidebar (window);
-	}
+       if (gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action))) {
+               nautilus_window_show_sidebar (window);
+       } else {
+               nautilus_window_hide_sidebar (window);
+       }
 }
 
 static void
@@ -770,7 +770,7 @@ static const GtkToggleActionEntry main_toggle_entries[] = {
   /* label, accelerator */   N_("_Show Sidebar"), "F9",
   /* tooltip */              N_("Change the visibility of this window's side pane"),
                              G_CALLBACK (action_show_hide_sidebar_callback),
-  /* is_active */            TRUE }, 
+  /* is_active */            TRUE },
   /* name, stock id */     { NAUTILUS_ACTION_SEARCH, "edit-find-symbolic",
   /* label, accelerator */   N_("_Search for Files..."), "<control>f",
   /* tooltip */              N_("Search documents and folders by name"),
@@ -818,19 +818,19 @@ static const gchar* app_actions[] = {
 static void
 window_menus_set_bindings (NautilusWindow *window)
 {
-	GtkActionGroup *action_group;
-	GtkAction *action;
+       GtkActionGroup *action_group;
+       GtkAction *action;
 
-	action_group = nautilus_window_get_main_action_group (window);
+       action_group = nautilus_window_get_main_action_group (window);
 
-	action = gtk_action_group_get_action (action_group,
-					      NAUTILUS_ACTION_SHOW_HIDE_SIDEBAR);	
+       action = gtk_action_group_get_action (action_group,
+                                             NAUTILUS_ACTION_SHOW_HIDE_SIDEBAR);
 
-	g_settings_bind (nautilus_window_state,
-			 NAUTILUS_WINDOW_STATE_START_WITH_SIDEBAR,
-			 action,
-			 "active",
-			 G_SETTINGS_BIND_DEFAULT);
+       g_settings_bind (nautilus_window_state,
+                        NAUTILUS_WINDOW_STATE_START_WITH_SIDEBAR,
+                        action,
+                        "active",
+                        G_SETTINGS_BIND_DEFAULT);
 }
 
 static void
