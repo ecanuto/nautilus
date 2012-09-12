@@ -299,7 +299,6 @@ nautilus_window_pane_dispose (GObject *object)
 	unset_focus_widget (pane);
 
 	pane->window = NULL;
-	g_clear_object (&pane->action_group);
 
 	g_assert (pane->slots == NULL);
 
