@@ -65,8 +65,6 @@ struct _NautilusWindowPane {
 	/* notebook */
 	GtkWidget *notebook;
 
-	GtkActionGroup *action_group;
-
 	GtkWidget *last_focus_widget;
 };
 

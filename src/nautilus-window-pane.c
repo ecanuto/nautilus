@@ -310,16 +310,11 @@ nautilus_window_pane_constructed (GObject *obj)
 {
 	NautilusWindowPane *pane = NAUTILUS_WINDOW_PANE (obj);
 	GtkSizeGroup *header_size_group;
-	NautilusWindow *window;
 
 	G_OBJECT_CLASS (nautilus_window_pane_parent_class)->constructed (obj);
 
-	window = pane->window;
-
 	header_size_group = gtk_size_group_new (GTK_SIZE_GROUP_VERTICAL);
 	gtk_size_group_set_ignore_hidden (header_size_group, FALSE);
-
-	pane->action_group = nautilus_window_get_main_action_group (window);
 
 	/* start as non-active */
 	nautilus_window_pane_set_active (pane, FALSE);
