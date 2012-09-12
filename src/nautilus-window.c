@@ -1690,23 +1690,6 @@ nautilus_window_get_extra_slot (NautilusWindow *window)
 	return extra_pane->active_slot;
 }
 
-static void
-window_set_search_action_text (NautilusWindow *window,
-			       gboolean setting)
-{
-	GtkAction *action;
-	NautilusWindowPane *pane;
-	GList *l;
-
-	for (l = window->details->panes; l != NULL; l = l->next) {
-		pane = l->data;
-		action = gtk_action_group_get_action (pane->action_group,
-						      NAUTILUS_ACTION_SEARCH);
-
-		gtk_action_set_is_important (action, setting);
-	}
-}
-
 static NautilusWindowSlot *
 create_extra_pane (NautilusWindow *window)
 {
@@ -2028,8 +2011,6 @@ nautilus_window_split_view_on (NautilusWindow *window)
 
 	nautilus_window_slot_open_location (slot, location, 0);
 	g_object_unref (location);
-
-	window_set_search_action_text (window, FALSE);
 }
 
 void
@@ -2052,7 +2033,6 @@ nautilus_window_split_view_off (NautilusWindow *window)
 	nautilus_window_set_active_pane (window, active_pane);
 
 	nautilus_window_update_show_hide_menu_items (window);
-	window_set_search_action_text (window, TRUE);
 }
 
 gboolean
