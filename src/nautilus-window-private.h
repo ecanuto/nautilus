@@ -97,16 +97,12 @@ typedef void (*NautilusBookmarkFailedCallback) (NautilusWindow *window,
                                                 NautilusBookmark *bookmark);
 
 void               nautilus_window_load_extension_menus                  (NautilusWindow    *window);
-NautilusWindowPane *nautilus_window_get_next_pane                        (NautilusWindow *window);
 
 NautilusWindowSlot *nautilus_window_get_slot_for_view                    (NautilusWindow *window,
 									  NautilusView   *view);
 
 void                 nautilus_window_set_active_slot                     (NautilusWindow    *window,
 									  NautilusWindowSlot *slot);
-void                 nautilus_window_set_active_pane                     (NautilusWindow *window,
-                                                                          NautilusWindowPane *new_pane);
-NautilusWindowPane * nautilus_window_get_active_pane                     (NautilusWindow *window);
 
 
 /* sync window GUI with current slot. Used when changing slots,
@@ -131,8 +127,11 @@ void               nautilus_window_finalize_menus                        (Nautil
 
 void               nautilus_window_update_show_hide_menu_items           (NautilusWindow     *window);
 
-/* window toolbar */
+/* window pane */
+void                 nautilus_window_set_active_pane                     (NautilusWindow *window,
+                                                                          NautilusWindowPane *new_pane);
+NautilusWindowPane  *nautilus_window_get_active_pane                     (NautilusWindow *window);
+NautilusWindowPane  *nautilus_window_get_next_pane                       (NautilusWindow *window);
 void               nautilus_window_close_pane                            (NautilusWindow    *window,
                                                                           NautilusWindowPane *pane);
-
 #endif /* NAUTILUS_WINDOW_PRIVATE_H */

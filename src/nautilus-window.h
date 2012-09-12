@@ -120,7 +120,6 @@ GtkActionGroup * nautilus_window_get_main_action_group (NautilusWindow   *window
 void                 nautilus_window_report_load_complete     (NautilusWindow *window,
                                                                NautilusView *view);
 
-NautilusWindowSlot * nautilus_window_get_extra_slot       (NautilusWindow *window);
 NautilusWindowShowHiddenFilesMode
                      nautilus_window_get_hidden_files_mode (NautilusWindow *window);
 void                 nautilus_window_set_hidden_files_mode (NautilusWindow *window,
@@ -131,6 +130,7 @@ void                 nautilus_window_view_visible          (NautilusWindow *wind
                                                             NautilusView *view);
 NautilusWindowSlot * nautilus_window_get_active_slot       (NautilusWindow *window);
 GList *              nautilus_window_get_slots             (NautilusWindow *window);
+NautilusWindowSlot * nautilus_window_get_extra_slot        (NautilusWindow *window);
 
 GtkWidget *          nautilus_window_ensure_location_bar   (NautilusWindow *window);
 void                 nautilus_window_sync_location_widgets (NautilusWindow *window);
@@ -143,6 +143,7 @@ void     nautilus_window_back_or_forward      (NautilusWindow *window,
                                                gboolean        back,
                                                guint           distance,
                                                NautilusWindowOpenFlags flags);
+
 void     nautilus_window_split_view_on        (NautilusWindow *window);
 void     nautilus_window_split_view_off       (NautilusWindow *window);
 gboolean nautilus_window_split_view_showing   (NautilusWindow *window);

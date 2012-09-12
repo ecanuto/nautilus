@@ -250,16 +250,14 @@ static void
 real_active (NautilusWindowSlot *slot)
 {
 	NautilusWindow *window;
-	NautilusWindowPane *pane;
 	int page_num;
 
-	window = nautilus_window_slot_get_window (slot);
-	pane = slot->pane;
-	page_num = gtk_notebook_page_num (GTK_NOTEBOOK (pane->notebook),
+	window = slot->pane->window;
+	page_num = gtk_notebook_page_num (GTK_NOTEBOOK (slot->pane->notebook),
 					  GTK_WIDGET (slot));
 	g_assert (page_num >= 0);
 
-	gtk_notebook_set_current_page (GTK_NOTEBOOK (pane->notebook), page_num);
+	gtk_notebook_set_current_page (GTK_NOTEBOOK (slot->pane->notebook), page_num);
 
 	/* sync window to new slot */
 	nautilus_window_sync_allow_stop (window, slot);
