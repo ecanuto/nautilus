@@ -398,13 +398,14 @@ nautilus_window_pane_new (NautilusWindow *window)
 			     NULL);
 }
 
-static void
-nautilus_window_pane_set_active_style (NautilusWindowPane *pane,
+void
+nautilus_window_pane_set_active (NautilusWindowPane *pane,
 				       gboolean is_active)
 {
 	GtkStyleContext *style;
 	gboolean has_inactive;
 
+	/* pane inactive style */
 	style = gtk_widget_get_style_context (GTK_WIDGET (pane));
 	has_inactive = gtk_style_context_has_class (style, "nautilus-inactive-pane");
 
@@ -419,14 +420,6 @@ nautilus_window_pane_set_active_style (NautilusWindowPane *pane,
 	}
 
 	gtk_widget_reset_style (GTK_WIDGET (pane));
-}
-
-void
-nautilus_window_pane_set_active (NautilusWindowPane *pane,
-				 gboolean is_active)
-{
-	/* pane inactive style */
-	nautilus_window_pane_set_active_style (pane, is_active);
 }
 
 void
