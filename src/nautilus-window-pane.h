@@ -64,8 +64,6 @@ struct _NautilusWindowPane {
 
 	/* notebook */
 	GtkWidget *notebook;
-
-	GtkWidget *last_focus_widget;
 };
 
 GType nautilus_window_pane_get_type (void);

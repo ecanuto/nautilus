@@ -55,16 +55,6 @@ static GParamSpec *properties[NUM_PROPERTIES] = { NULL, };
 G_DEFINE_TYPE (NautilusWindowPane, nautilus_window_pane,
 	       GTK_TYPE_BOX)
 
-static void
-unset_focus_widget (NautilusWindowPane *pane)
-{
-       if (pane->last_focus_widget != NULL) {
-               g_object_remove_weak_pointer (G_OBJECT (pane->last_focus_widget),
-                                             (gpointer *) &pane->last_focus_widget);
-               pane->last_focus_widget = NULL;
-       }
-}
-
 static inline NautilusWindowSlot *
 get_first_inactive_slot (NautilusWindowPane *pane)
 {
@@ -296,7 +286,7 @@ nautilus_window_pane_dispose (GObject *object)
 {
 	NautilusWindowPane *pane = NAUTILUS_WINDOW_PANE (object);
 
-	unset_focus_widget (pane);
+	//unset_focus_widget (pane);
 
 	pane->window = NULL;
 
