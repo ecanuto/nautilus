@@ -307,6 +307,37 @@ nautilus_window_pane_dispose (GObject *object)
 	G_OBJECT_CLASS (nautilus_window_pane_parent_class)->dispose (object);
 }
 
+static GtkWidget *
+create_notebook (NautilusWindowPane *pane)
+{
+	GtkWidget *notebook;
+
+	notebook = g_object_new (NAUTILUS_TYPE_NOTEBOOK, NULL);
+	g_signal_connect (notebook, "tab-close-request",
+			  G_CALLBACK (notebook_tab_close_requested),
+			  pane);
+	g_signal_connect (notebook, "popup-menu",
+			  G_CALLBACK (notebook_popup_menu_cb),
+			  pane);
+	g_signal_connect (notebook, "switch-page",
+			  G_CALLBACK (notebook_switch_page_cb),
+			  pane);
+	g_signal_connect_after (notebook, "button-press-event",
+				G_CALLBACK (notebook_button_press_cb),
+				pane);
+
+	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (notebook), FALSE);
+	gtk_notebook_set_show_border (GTK_NOTEBOOK (notebook), FALSE);
+	gtk_widget_show (notebook);
+	gtk_container_set_border_width (GTK_CONTAINER (notebook), 0);
+
+	gtk_box_pack_start (GTK_BOX (pane),
+			    notebook,
+			    TRUE, TRUE, 0);
+
+	return notebook;
+}
+
 static void
 nautilus_window_pane_constructed (GObject *obj)
 {
@@ -322,29 +353,7 @@ nautilus_window_pane_constructed (GObject *obj)
 	nautilus_window_pane_set_active (pane, FALSE);
 
 	/* initialize the notebook */
-	pane->notebook = g_object_new (NAUTILUS_TYPE_NOTEBOOK, NULL);
-	gtk_box_pack_start (GTK_BOX (pane), pane->notebook,
-			    TRUE, TRUE, 0);
-	g_signal_connect (pane->notebook,
-			  "tab-close-request",
-			  G_CALLBACK (notebook_tab_close_requested),
-			  pane);
-	g_signal_connect_after (pane->notebook,
-				"button_press_event",
-				G_CALLBACK (notebook_button_press_cb),
-				pane);
-	g_signal_connect (pane->notebook, "popup-menu",
-			  G_CALLBACK (notebook_popup_menu_cb),
-			  pane);
-	g_signal_connect (pane->notebook,
-			  "switch-page",
-			  G_CALLBACK (notebook_switch_page_cb),
-			  pane);
-
-	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (pane->notebook), FALSE);
-	gtk_notebook_set_show_border (GTK_NOTEBOOK (pane->notebook), FALSE);
-	gtk_widget_show (pane->notebook);
-	gtk_container_set_border_width (GTK_CONTAINER (pane->notebook), 0);
+	pane->notebook = create_notebook (pane);
 
 	/* Ensure that the view has some minimal size and that other parts
 	 * of the UI (like location bar and tabs) don't request more and
