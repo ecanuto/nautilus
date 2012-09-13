@@ -258,6 +258,7 @@ navigation_bar_location_changed_callback (GtkWidget      *widget,
 void
 nautilus_window_new_tab (NautilusWindow *window)
 {
+	NautilusWindowPane *pane;
 	NautilusWindowSlot *current_slot;
 	NautilusWindowSlot *new_slot;
 	NautilusWindowOpenFlags flags;
@@ -283,7 +284,8 @@ nautilus_window_new_tab (NautilusWindow *window)
 		}
 		g_free (scheme);
 
-		new_slot = nautilus_window_pane_open_slot (current_slot->pane, flags);
+		pane = nautilus_window_slot_get_window_pane (current_slot);
+		new_slot = nautilus_window_pane_open_slot (pane, flags);
 		nautilus_window_set_active_slot (window, new_slot);
 		nautilus_window_slot_open_location (new_slot, location, 0);
 		g_object_unref (location);
@@ -343,6 +345,7 @@ void
 nautilus_window_sync_allow_stop (NautilusWindow *window,
 				 NautilusWindowSlot *slot)
 {
+	NautilusWindowPane *pane;
 	GtkAction *stop_action;
 	GtkAction *reload_action;
 	gboolean allow_stop, slot_is_active;
@@ -366,7 +369,8 @@ nautilus_window_sync_allow_stop (NautilusWindow *window,
 			update_cursor (window);
 		}
 
-		nautilus_notebook_sync_loading (NAUTILUS_NOTEBOOK (slot->pane->notebook), slot);
+		pane = nautilus_window_slot_get_window_pane (slot);
+		nautilus_notebook_sync_loading (NAUTILUS_NOTEBOOK (pane->notebook), slot);
 	}
 }
 
@@ -995,7 +999,7 @@ nautilus_window_view_visible (NautilusWindow *window,
 	}
 
 	slot->visible = TRUE;
-	pane = slot->pane;
+	pane = nautilus_window_slot_get_window_pane (slot);
 
 	if (gtk_widget_get_visible (GTK_WIDGET (pane))) {
 		return;
@@ -1135,16 +1139,19 @@ nautilus_window_set_active_pane (NautilusWindow *window,
 void
 nautilus_window_set_active_slot (NautilusWindow *window, NautilusWindowSlot *new_slot)
 {
+	NautilusWindowPane *new_pane;
 	NautilusWindowSlot *old_slot;
 
 	g_assert (NAUTILUS_IS_WINDOW (window));
 
 	DEBUG ("Setting new slot %p as active", new_slot);
 
+	new_pane = nautilus_window_slot_get_window_pane (new_slot);
+
 	if (new_slot) {
 		g_assert ((window == nautilus_window_slot_get_window (new_slot)));
-		g_assert (NAUTILUS_IS_WINDOW_PANE (new_slot->pane));
-		g_assert (g_list_find (new_slot->pane->slots, new_slot) != NULL);
+		g_assert (NAUTILUS_IS_WINDOW_PANE (new_pane));
+		g_assert (g_list_find (new_pane->slots, new_slot) != NULL);
 	}
 
 	old_slot = nautilus_window_get_active_slot (window);
@@ -1165,9 +1172,8 @@ nautilus_window_set_active_slot (NautilusWindow *window, NautilusWindowSlot *new
 	}
 
 	/* deal with panes */
-	if (new_slot &&
-	    new_slot->pane != window->details->active_pane) {
-		real_set_active_pane (window, new_slot->pane);
+	if (new_slot && new_pane != window->details->active_pane) {
+		real_set_active_pane (window, new_pane);
 	}
 
 	window->details->active_pane->active_slot = new_slot;
@@ -1376,6 +1382,8 @@ void
 nautilus_window_sync_title (NautilusWindow *window,
 			    NautilusWindowSlot *slot)
 {
+	NautilusWindowPane *pane;
+
 	if (NAUTILUS_WINDOW_CLASS (G_OBJECT_GET_CLASS (window))->sync_title != NULL) {
 		NAUTILUS_WINDOW_CLASS (G_OBJECT_GET_CLASS (window))->sync_title (window, slot);
 
@@ -1386,7 +1394,8 @@ nautilus_window_sync_title (NautilusWindow *window,
 		gtk_window_set_title (GTK_WINDOW (window), slot->title);
 	}
 
-	nautilus_notebook_sync_tab_label (NAUTILUS_NOTEBOOK (slot->pane->notebook), slot);
+	pane = nautilus_window_slot_get_window_pane (slot);
+	nautilus_notebook_sync_tab_label (NAUTILUS_NOTEBOOK (pane->notebook), slot);
 }
 
 void

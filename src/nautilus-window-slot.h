@@ -121,12 +121,14 @@ struct NautilusWindowSlot {
 
 GType   nautilus_window_slot_get_type (void);
 
-NautilusWindowSlot * nautilus_window_slot_new              (NautilusWindow *window);
+NautilusWindowSlot * nautilus_window_slot_new              (NautilusWindowPane *window);
 
 NautilusWindow * nautilus_window_slot_get_window           (NautilusWindowSlot *slot);
 void             nautilus_window_slot_set_window           (NautilusWindowSlot *slot,
 							    NautilusWindow     *window);
 NautilusWindowPane * nautilus_window_slot_get_window_pane  (NautilusWindowSlot *slot);
+void                 nautilus_window_slot_set_window_pane  (NautilusWindowSlot *slot,
+							    NautilusWindowPane *pane);
 
 void    nautilus_window_slot_update_title		   (NautilusWindowSlot *slot);
 void    nautilus_window_slot_set_query_editor_visible	   (NautilusWindowSlot *slot,

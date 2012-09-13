@@ -56,7 +56,7 @@ enum {
 };
 
 struct NautilusWindowSlotDetails {
-	NautilusWindow *window;
+	NautilusWindowPane *pane;
 };
 
 static guint signals[LAST_SIGNAL] = { 0 };
@@ -257,11 +257,11 @@ real_active (NautilusWindowSlot *slot)
 	int page_num;
 
 	window = slot->details->pane->window;
-	page_num = gtk_notebook_page_num (GTK_NOTEBOOK (slot->pane->notebook),
+	page_num = gtk_notebook_page_num (GTK_NOTEBOOK (slot->details->pane->notebook),
 					  GTK_WIDGET (slot));
 	g_assert (page_num >= 0);
 
-	gtk_notebook_set_current_page (GTK_NOTEBOOK (slot->pane->notebook), page_num);
+	gtk_notebook_set_current_page (GTK_NOTEBOOK (slot->details->pane->notebook), page_num);
 
 	/* sync window to new slot */
 	nautilus_window_sync_allow_stop (window, slot);
@@ -305,7 +305,7 @@ nautilus_window_slot_set_property (GObject *object,
 
 	switch (property_id) {
 	case PROP_PANE:
-		nautilus_window_slot_set_pane (slot, g_value_get_object (value));
+		nautilus_window_slot_set_window_pane (slot, g_value_get_object (value));
 		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -534,7 +534,7 @@ nautilus_window_slot_set_window (NautilusWindowSlot *slot,
 
 	if (slot->details->pane->window != window) {
 		slot->details->pane->window = window;
-		g_object_notify_by_pspec (G_OBJECT (slot), properties[PROP_WINDOW]);
+		g_object_notify_by_pspec (G_OBJECT (slot), properties[PROP_PANE]);
 	}
 }
 
@@ -546,9 +546,22 @@ nautilus_window_slot_get_window_pane (NautilusWindowSlot *slot)
 }
 
 void
+nautilus_window_slot_set_window_pane (NautilusWindowSlot *slot,
+				      NautilusWindowPane *pane)
+{
+	g_assert (NAUTILUS_IS_WINDOW_SLOT (slot));
+	g_assert (NAUTILUS_IS_WINDOW_PANE (pane));
+
+	if (slot->details->pane != pane) {
+		slot->details->pane = pane;
+		g_object_notify_by_pspec (G_OBJECT (slot), properties[PROP_PANE]);
+	}
+}
+
+void
 nautilus_window_slot_make_hosting_pane_active (NautilusWindowSlot *slot)
 {
-	g_assert (NAUTILUS_IS_WINDOW_PANE (slot->pane));
+	g_assert (NAUTILUS_IS_WINDOW_PANE (slot->details->pane));
 	
 	nautilus_window_set_active_slot (nautilus_window_slot_get_window (slot),
 					 slot);

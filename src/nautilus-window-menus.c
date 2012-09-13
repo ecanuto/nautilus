@@ -71,12 +71,14 @@ action_close_window_slot_callback (GtkAction *action,
 				   gpointer user_data)
 {
 	NautilusWindow *window;
+	NautilusWindowPane *pane;
 	NautilusWindowSlot *slot;
 
 	window = NAUTILUS_WINDOW (user_data);
+	pane = nautilus_window_get_active_pane (window);
 	slot = nautilus_window_get_active_slot (window);
 
-	nautilus_window_pane_slot_close (slot->pane, slot);
+	nautilus_window_pane_slot_close (pane, slot);
 }
 
 static void

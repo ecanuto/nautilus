@@ -468,12 +468,11 @@ nautilus_window_pane_close_slot (NautilusWindowPane *pane,
 	GtkNotebook *notebook;
 
 	g_assert (NAUTILUS_IS_WINDOW_SLOT (slot));
-	g_assert (NAUTILUS_IS_WINDOW_PANE (slot->pane));
 
 	DEBUG ("Closing slot %p", slot);
 
 	/* save pane because slot is not valid anymore after this call */
-	pane = slot->pane;
+	pane = nautilus_window_slot_get_window_pane(slot);
 	notebook = GTK_NOTEBOOK (pane->notebook);
 
 	nautilus_window_manage_views_close_slot (slot);
