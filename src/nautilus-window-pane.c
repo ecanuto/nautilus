@@ -531,6 +531,7 @@ nautilus_window_pane_open_slot (NautilusWindowPane *pane,
 					   pane);
 
 	pane->slots = g_list_append (pane->slots, slot);
+	g_signal_emit_by_name (pane->window, "slot-added", 0, slot);
 
 	return slot;
 }
