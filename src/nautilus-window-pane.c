@@ -50,18 +50,6 @@ enum {
 	NUM_PROPERTIES
 };
 
-enum {
-	GO_UP,
-	RELOAD,
-	PROMPT_FOR_LOCATION,
-	LOADING_URI,
-	HIDDEN_FILES_MODE_CHANGED,
-	SLOT_ADDED,
-	SLOT_REMOVED,
-	LAST_SIGNAL
-};
-
-static guint signals[LAST_SIGNAL] = { 0 };
 static GParamSpec *properties[NUM_PROPERTIES] = { NULL, };
 
 G_DEFINE_TYPE (NautilusWindowPane, nautilus_window_pane,
@@ -499,7 +487,7 @@ nautilus_window_pane_close_slot (NautilusWindowPane *pane,
 	nautilus_window_manage_views_close_slot (slot);
 	pane->slots = g_list_remove (pane->slots, slot);
 
-	g_signal_emit (pane->window, signals[SLOT_REMOVED], 0, slot);
+	g_signal_emit_by_name (pane->window, "slot-removed", 0, slot);
 
 	notebook = GTK_NOTEBOOK (pane->notebook);
 
